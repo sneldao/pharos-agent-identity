@@ -23,9 +23,7 @@ ask "who are you, and who vouches for that?"
 
 ## Repo
 
-`https://github.com/<your-handle>/pharos-agent-identity`
-
-(Replace with your real GitHub URL after `git init` and the first commit.)
+`https://github.com/sneldao/pharos-agent-identity`
 
 ## Live demo (Loom / YouTube)
 
