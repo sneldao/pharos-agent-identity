@@ -45,7 +45,7 @@ esac
 if [[ -z "${PRIVATE_KEY:-}" ]]; then
   if [[ -n "${PHAROS_DEPLOYER_KEY:-}" ]]; then
     export PRIVATE_KEY="$PHAROS_DEPLOYER_KEY"
-    echo "Using PHAROS_DEPLOYER_KEY (from .env.d/deployer.example.env)"
+    echo "Using PHAROS_DEPLOYER_KEY (from .env.d/deployer.env)"
   elif [[ -n "${DEPLOYER_KEY:-}" ]]; then
     export PRIVATE_KEY="$DEPLOYER_KEY"
   fi
@@ -96,11 +96,17 @@ cd "$ROOT_DIR"
 
 # Deploy via Forge
 echo "Deploying..."
+GAS_PRICE_FLAG=()
+if [[ -n "${PHAROS_GAS_PRICE:-}" ]]; then
+  GAS_PRICE_FLAG=(--gas-price "$PHAROS_GAS_PRICE")
+  echo "Using custom gas price: $PHAROS_GAS_PRICE"
+fi
 DEPLOYMENT_OUT="$ROOT_DIR/.deployment-latest.json" \
   forge script script/Deploy.s.sol:DeployIdentitySkill \
   --rpc-url "$RPC" \
   --private-key "$PRIVATE_KEY" \
-  --broadcast
+  --broadcast \
+  "${GAS_PRICE_FLAG[@]}"
 
 if [[ ! -f "$ROOT_DIR/.deployment-latest.json" ]]; then
   echo "ERROR: forge did not write a deployment record. Did the broadcast succeed?" >&2
