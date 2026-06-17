@@ -1,0 +1,39 @@
+{
+  "networks": {
+    "atlantic-testnet": {
+      "name": "Pharos Atlantic Testnet",
+      "chainId": 688689,
+      "rpcUrl": "https://atlantic.dplabs-internal.com",
+      "fallbackRpcUrls": ["https://testnet.dplabs-internal.com"],
+      "explorerUrl": "https://atlantic.pharosscan.xyz",
+      "explorerApiUrl": "https://api.socialscan.io/pharos-atlantic-testnet",
+      "nativeToken": {"symbol": "PHRS", "name": "Pharos", "decimals": 18}
+    },
+    "mainnet": {
+      "name": "Pharos Mainnet",
+      "chainId": 1672,
+      "rpcUrl": "https://rpc.pharos.xyz",
+      "explorerUrl": "https://www.pharosscan.xyz",
+      "explorerApiUrl": "https://api.socialscan.io/pharos-mainnet",
+      "nativeToken": {"symbol": "PROS", "name": "Pharos", "decimals": 18}
+    },
+    "local-anvil": {
+      "name": "Local Anvil (test only)",
+      "chainId": 31337,
+      "rpcUrl": "http://127.0.0.1:8545",
+      "explorerUrl": "http://localhost",
+      "explorerApiUrl": "",
+      "nativeToken": {"symbol": "ETH", "name": "Ether", "decimals": 18}
+    }
+  },
+  "defaultNetwork": "atlantic-testnet",
+  "deployment": {
+    "atlantic-testnet": {
+      "pharosAgentId": "PENDING_DEPLOYMENT",
+      "credentialRegistry": "PENDING_DEPLOYMENT",
+      "chainId": 688689,
+      "deployer": "PENDING",
+      "deployedAt": "PENDING"
+    }
+  }
+}

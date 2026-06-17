@@ -1,0 +1,30 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc = "0.8.24"
+optimizer = true
+optimizer_runs = 200
+gas_reports = ["PharosAgentID", "CredentialRegistry"]
+auto_detect_solc = true
+fs_permissions = [
+  { access = "read-write", path = "./assets" },
+  { access = "read-write", path = "./.deployment-latest.json" },
+]
+
+[fmt]
+line_length = 100
+tab_width = 4
+bracket_spacing = false
+int_types = "long"
+multiline_func_header = "attributes_first"
+quote_style = "double"
+number_underscore = "thousands"
+
+[rpc_endpoints]
+atlantic = "https://atlantic.dplabs-internal.com"
+mainnet = "https://rpc.pharos.xyz"
+
+# Note: source verification on Pharos Scan is handled by scripts/verify.sh
+# (it hits the socialscan API directly). Configure SOCIALSCAN_API_KEY
+# in your env and run that script after deploy.

@@ -1,0 +1,43 @@
+# dependencies
+lib/
+node_modules/
+out/
+cache/
+broadcast/
+
+# secrets — never commit these
+.env
+.env.local
+.env.*.local
+.env.d/
+*.key
+*.pem
+*.p12
+*.pfx
+*.secret
+secrets/
+deployments/localhost/
+
+# deployment records (contain live addresses + deployer info)
+.deployment-latest.json
+
+# editor
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+
+# test artifacts
+coverage/
+coverage.json
+lcov.info
+gas-report.txt
+
+# foundry debug
+debug.log
+.trace
+
+# npm
+.npm
+.npmrc

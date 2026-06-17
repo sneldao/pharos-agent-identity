@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# .githooks/pre-commit — blocks secrets from being committed.
+# Pointed to by `git config core.hooksPath .githooks` (set up by
+# scripts/setup-git.sh).
+
+set -uo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+if [[ -z "$REPO_ROOT" ]]; then
+  echo "pre-commit: not in a git repo (skipping)" >&2
+  exit 0
+fi
+
+cd "$REPO_ROOT"
+
+# Skip when the user explicitly opts out (e.g. for an emergency commit).
+if [[ -n "${HUSKY_SKIP_HOOKS:-}" ]] || [[ -n "${SKIP_SECRET_SCAN:-}" ]]; then
+  echo "pre-commit: secret scan skipped (HUSKY_SKIP_HOOKS or SKIP_SECRET_SCAN set)" >&2
+  exit 0
+fi
+
+# Run the scanner in --staged mode. The script uses gitleaks if available,
+# otherwise falls back to the pure-bash scanner in tools/secret-scan.sh.
+exec bash "$REPO_ROOT/tools/secret-scan.sh" --staged

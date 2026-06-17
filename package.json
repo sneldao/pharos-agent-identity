@@ -1,0 +1,51 @@
+{
+  "name": "pharos-identity-skill",
+  "version": "0.1.0",
+  "description": "Agent Identity & Verifiable Credentials Skill for the Pharos AI Agent ecosystem. Issue portable agent IDs (ERC-721), sign and verify EIP-712 capability credentials, rotate keys, and revoke. Built for the Pharos Skill-to-Agent Dual Cascade Hackathon (Phase 1).",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "pharos-identity": "./dist/cli/index.js"
+  },
+  "main": "./dist/cli/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node --enable-source-maps dist/cli/index.js",
+    "dev": "tsx src/cli/index.ts",
+    "mcp": "node --enable-source-maps dist/mcp/server.js",
+    "mcp:dev": "tsx src/mcp/server.ts",
+    "test": "forge test -vvv",
+    "test:coverage": "forge coverage",
+    "deploy:atlantic": "bash scripts/deploy.sh atlantic",
+    "verify:atlantic": "bash scripts/verify.sh atlantic",
+    "demo": "bash scripts/demo.sh",
+    "format": "forge fmt && prettier --write 'src/**/*.{ts,json,md}'",
+    "clean": "rm -rf out cache broadcast dist"
+  },
+  "keywords": [
+    "pharos",
+    "agent",
+    "skill",
+    "identity",
+    "credentials",
+    "eip-712",
+    "erc-721",
+    "mcp",
+    "ai-agent",
+    "web3"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "viem": "^2.21.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "prettier": "^3.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
