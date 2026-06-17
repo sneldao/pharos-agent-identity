@@ -1,79 +1,27 @@
 /**
- * Pharos Identity Skill — CLI
+ * Pharos Agent Identity Skill — CLI
  *
  * Usage:
- *   pharos-identity issue [--token-uri <uri>] [--controller <addr>]
- *   pharos-identity verify --subject <addr> --capability <name|hash> [--issuer <addr>]
- *   pharos-identity revoke --subject <addr> --capability <name|hash> --nonce <n> [--issuer-key <key>]
- *   pharos-identity rotate --token-id <id> --new-controller <addr>
- *   pharos-identity hash --capability <name>
- *   pharos-identity sign --issuer-key <key> --subject <addr> --capability <name|hash> [--expires-in <seconds>]
- *   pharos-identity info
+ *   pharos-agent-identity issue [--token-uri <uri>] [--controller <addr>]
+ *   pharos-agent-identity verify --subject <addr> --capability <name|hash> [--issuer <addr>]
+ *   pharos-agent-identity revoke --subject <addr> --capability <name|hash> --nonce <n> [--issuer-key <key>]
+ *   pharos-agent-identity rotate --token-id <id> --new-controller <addr>
+ *   pharos-agent-identity hash --capability <name>
+ *   pharos-agent-identity sign --issuer-key <key> --subject <addr> --capability <name|hash> [--expires-in <seconds>]
+ *   pharos-agent-identity info
  */
-import { createPublicClient, createWalletClient, defineChain, http, toBytes, toHex, } from "viem";
+import { createPublicClient, createWalletClient, defineChain, http, } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { keccak_256 } from "@noble/hashes/sha3";
-import * as fs from "node:fs";
-import * as path from "node:path";
-import { fileURLToPath } from "node:url";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const ROOT_DIR = (() => {
-    // When run from the project (e.g. `node dist/cli/index.js`), the assets/ folder
-    // is at the project root, not next to the compiled file. We try multiple candidates
-    // and fall back to the cwd.
-    const candidates = [
-        path.resolve(__dirname, "..", ".."), // dist/cli -> project root
-        path.resolve(__dirname, ".."), // cli -> project root (when running from src)
-        process.cwd(), // current working directory
-    ];
-    for (const c of candidates) {
-        if (fs.existsSync(path.join(c, "assets", "networks.json"))) {
-            return c;
-        }
-    }
-    return candidates[0];
-})();
-function loadConfig() {
-    const networksFile = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, "assets", "networks.json"), "utf-8"));
-    const networkName = process.env.PHAROS_NETWORK || networksFile.defaultNetwork;
-    const network = networksFile.networks[networkName];
-    if (!network) {
-        throw new Error(`Unknown network: ${networkName}`);
-    }
-    // Match deployment by chainId (so a custom anvil chain 31337 can be deployed to
-    // and the CLI will still find the right deployment entry by chainId).
-    let deployment;
-    for (const [key, dep] of Object.entries(networksFile.deployment)) {
-        if (dep.chainId === network.chainId) {
-            deployment = dep;
-            break;
-        }
-    }
-    if (!deployment) {
-        // Fallback: try matching by key name (legacy).
-        deployment = networksFile.deployment[networkName];
-    }
-    if (!deployment) {
-        throw new Error(`No deployment recorded for chainId ${network.chainId} (network: ${networkName}). ` +
-            `Run scripts/deploy.sh first.`);
-    }
-    return { networksFile, networkName, network, deployment };
-}
-function capabilityHash(name) {
-    return toHex(keccak_256(toBytes(name)));
-}
-function parseAddress(s) {
-    if (!/^0x[0-9a-fA-F]{40}$/.test(s)) {
-        throw new Error(`Invalid address: ${s}`);
-    }
-    return s;
-}
+import { CREDENTIAL_REGISTRY_ABI, PHAROS_AGENT_ID_ABI, capabilityHash, isHexBytes32, loadConfig, parseAddress, } from "../lib/index.js";
+// Re-export for downstream consumers (e.g. integration tests)
+export { PHAROS_AGENT_ID_ABI, CREDENTIAL_REGISTRY_ABI };
+/** CLI-specific: parse a capability arg as either a 32-byte hex or a name. */
 function parseCap(s) {
-    if (/^0x[0-9a-fA-F]{64}$/.test(s))
+    if (isHexBytes32(s))
         return s;
     return capabilityHash(s);
 }
+/** Read a --flag <value> or --flag=value argument. */
 function arg(name, aliases = []) {
     const args = process.argv.slice(2);
     for (let i = 0; i < args.length; i++) {
@@ -87,169 +35,22 @@ function arg(name, aliases = []) {
     return undefined;
 }
 function usage() {
-    console.log(`pharos-identity — Pharos Identity Skill CLI
+    console.log(`pharos-agent-identity — Pharos Agent Identity Skill CLI
 
 Usage:
-  pharos-identity info
-  pharos-identity hash --capability <name>
-  pharos-identity issue [--token-uri <uri>] [--controller <addr>]
-  pharos-identity verify --subject <addr> --capability <name|hash> [--issuer <addr>]
-  pharos-identity revoke --subject <addr> --capability <name|hash> --nonce <n> [--issuer-key <key>]
-  pharos-identity rotate --token-id <id> --new-controller <addr>
-  pharos-identity sign --issuer-key <key> --subject <addr> --capability <name|hash> [--expires-in <seconds>]
+  pharos-agent-identity info
+  pharos-agent-identity hash --capability <name>
+  pharos-agent-identity issue [--token-uri <uri>] [--controller <addr>]
+  pharos-agent-identity verify --subject <addr> --capability <name|hash> [--issuer <addr>]
+  pharos-agent-identity revoke --subject <addr> --capability <name|hash> --nonce <n> [--issuer-key <key>]
+  pharos-agent-identity rotate --token-id <id> --new-controller <addr>
+  pharos-agent-identity sign --issuer-key <key> --subject <addr> --capability <name|hash> [--expires-in <seconds>]
 
 Environment:
   PRIVATE_KEY           wallet private key (for write operations)
   PHAROS_NETWORK        'atlantic' (default) or 'mainnet'
   PHAROS_RPC_URL        override the default RPC URL
 `);
-}
-// ---------- Minimal ABI ----------
-const PHAROS_AGENT_ID_ABI = [
-    {
-        type: "function",
-        name: "mintSelf",
-        stateMutability: "nonpayable",
-        inputs: [{ name: "tokenURI", type: "string" }],
-        outputs: [{ name: "tokenId", type: "uint256" }],
-    },
-    {
-        type: "function",
-        name: "mint",
-        stateMutability: "nonpayable",
-        inputs: [
-            { name: "controller", type: "address" },
-            { name: "tokenURI", type: "string" },
-        ],
-        outputs: [{ name: "tokenId", type: "uint256" }],
-    },
-    {
-        type: "function",
-        name: "rotate",
-        stateMutability: "nonpayable",
-        inputs: [
-            { name: "tokenId", type: "uint256" },
-            { name: "newController", type: "address" },
-        ],
-        outputs: [],
-    },
-    {
-        type: "function",
-        name: "walletOfAgent",
-        stateMutability: "view",
-        inputs: [{ name: "controller", type: "address" }],
-        outputs: [{ name: "tokenId", type: "uint256" }],
-    },
-    {
-        type: "function",
-        name: "ownerOf",
-        stateMutability: "view",
-        inputs: [{ name: "tokenId", type: "uint256" }],
-        outputs: [{ name: "owner", type: "address" }],
-    },
-];
-const CREDENTIAL_REGISTRY_ABI = [
-    {
-        type: "function",
-        name: "issue",
-        stateMutability: "nonpayable",
-        inputs: [
-            { name: "issuer", type: "address" },
-            { name: "subject", type: "address" },
-            { name: "capabilityHash", type: "bytes32" },
-            { name: "issuedAt", type: "uint64" },
-            { name: "expiresAt", type: "uint64" },
-            { name: "nonce", type: "uint256" },
-            { name: "signature", type: "bytes" },
-        ],
-        outputs: [{ name: "usedNonce", type: "uint256" }],
-    },
-    {
-        type: "function",
-        name: "revoke",
-        stateMutability: "nonpayable",
-        inputs: [
-            { name: "subject", type: "address" },
-            { name: "capabilityHash", type: "bytes32" },
-            { name: "nonce", type: "uint256" },
-        ],
-        outputs: [],
-    },
-    {
-        type: "function",
-        name: "isCapable",
-        stateMutability: "view",
-        inputs: [
-            { name: "subject", type: "address" },
-            { name: "capabilityHash", type: "bytes32" },
-        ],
-        outputs: [{ name: "capable", type: "bool" }],
-    },
-    {
-        type: "function",
-        name: "isCapableFromIssuer",
-        stateMutability: "view",
-        inputs: [
-            { name: "subject", type: "address" },
-            { name: "capabilityHash", type: "bytes32" },
-            { name: "issuer", type: "address" },
-        ],
-        outputs: [{ name: "capable", type: "bool" }],
-    },
-    {
-        type: "function",
-        name: "latestCredential",
-        stateMutability: "view",
-        inputs: [
-            { name: "subject", type: "address" },
-            { name: "capabilityHash", type: "bytes32" },
-        ],
-        outputs: [
-            {
-                name: "view",
-                type: "tuple",
-                components: [
-                    { name: "issuer", type: "address" },
-                    { name: "issuedAt", type: "uint64" },
-                    { name: "expiresAt", type: "uint64" },
-                    { name: "revoked", type: "bool" },
-                    { name: "valid", type: "bool" },
-                ],
-            },
-        ],
-    },
-    {
-        type: "function",
-        name: "issuerNonce",
-        stateMutability: "view",
-        inputs: [{ name: "issuer", type: "address" }],
-        outputs: [{ name: "nonce", type: "uint256" }],
-    },
-    {
-        type: "function",
-        name: "hashTypedData",
-        stateMutability: "view",
-        inputs: [
-            { name: "issuer", type: "address" },
-            { name: "subject", type: "address" },
-            { name: "capabilityHash", type: "bytes32" },
-            { name: "issuedAt", type: "uint256" },
-            { name: "expiresAt", type: "uint256" },
-            { name: "nonce", type: "uint256" },
-        ],
-        outputs: [{ name: "digest", type: "bytes32" }],
-    },
-];
-// ---------- Command implementations ----------
-async function cmdInfo() {
-    const { networkName, network, deployment } = loadConfig();
-    console.log(JSON.stringify({ networkName, network, deployment }, null, 2));
-}
-async function cmdHash() {
-    const cap = arg("capability");
-    if (!cap)
-        throw new Error("--capability <name> required");
-    console.log(JSON.stringify({ capability: cap, keccak256: capabilityHash(cap) }, null, 2));
 }
 function getClients() {
     const { network, deployment } = loadConfig();
@@ -268,20 +69,42 @@ function getClients() {
         : null;
     return { publicClient, walletClient, account, network, deployment, rpc, chain };
 }
+// ---------- Command implementations ----------
+async function cmdInfo() {
+    const { networkName, network, deployment } = loadConfig();
+    console.log(JSON.stringify({ networkName, network, deployment }, null, 2));
+}
+async function cmdHash() {
+    const cap = arg("capability");
+    if (!cap)
+        throw new Error("--capability <name> required");
+    console.log(JSON.stringify({ capability: cap, keccak256: capabilityHash(cap) }, null, 2));
+}
 async function cmdIssue() {
-    const { publicClient, walletClient, account, network, deployment } = getClients();
+    const { publicClient, walletClient, account, network, deployment, chain } = getClients();
     if (!walletClient || !account)
         throw new Error("PRIVATE_KEY not set");
     const controller = arg("controller") ? parseAddress(arg("controller")) : account.address;
     const tokenUri = arg("token-uri") ?? "";
-    const fn = controller.toLowerCase() === account.address.toLowerCase() ? "mintSelf" : "mint";
-    const args = fn === "mintSelf" ? [tokenUri] : [controller, tokenUri];
-    const hash = await walletClient.writeContract({
-        address: deployment.pharosAgentId,
-        abi: PHAROS_AGENT_ID_ABI,
-        functionName: fn,
-        args: args,
-    });
+    // Branch on whether the controller is the caller. Avoids `as never` casts that
+    // push viem's writeContract into a strict overload requiring an explicit account.
+    const hash = controller.toLowerCase() === account.address.toLowerCase()
+        ? await walletClient.writeContract({
+            address: deployment.pharosAgentId,
+            abi: PHAROS_AGENT_ID_ABI,
+            functionName: "mintSelf",
+            args: [tokenUri],
+            chain,
+            account: account.address,
+        })
+        : await walletClient.writeContract({
+            address: deployment.pharosAgentId,
+            abi: PHAROS_AGENT_ID_ABI,
+            functionName: "mint",
+            args: [controller, tokenUri],
+            chain,
+            account: account.address,
+        });
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     const tokenId = (await publicClient.readContract({
         address: deployment.pharosAgentId,
@@ -369,6 +192,7 @@ async function cmdRevoke() {
         abi: CREDENTIAL_REGISTRY_ABI,
         functionName: "revoke",
         args: [subjectAddr, capHash, nonceBig],
+        chain,
     });
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     console.log(JSON.stringify({
@@ -383,7 +207,7 @@ async function cmdRevoke() {
     }, null, 2));
 }
 async function cmdRotate() {
-    const { publicClient, walletClient, account, network, deployment } = getClients();
+    const { publicClient, walletClient, account, network, deployment, chain } = getClients();
     if (!walletClient || !account)
         throw new Error("PRIVATE_KEY not set");
     const tokenId = arg("token-id");
@@ -406,6 +230,8 @@ async function cmdRotate() {
         abi: PHAROS_AGENT_ID_ABI,
         functionName: "rotate",
         args: [tokenIdBig, newAddr],
+        chain,
+        account: account.address,
     });
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     console.log(JSON.stringify({

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy the Pharos Identity Skill contracts to Pharos Atlantic testnet (default) or mainnet.
+# Deploy the Pharos Agent Identity Skill contracts to Pharos Atlantic testnet (default) or mainnet.
 # Reads PRIVATE_KEY from the environment. Writes the deployed addresses to
 # assets/deployment.json.
 #

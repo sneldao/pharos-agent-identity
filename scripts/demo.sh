@@ -36,7 +36,7 @@ ISSUER=$(cast wallet address --private-key "$ISSUER_KEY")
 SUBJECT=$(cast wallet address --private-key "$SUBJECT_KEY")
 
 echo "=================================================="
-echo "Pharos Identity Skill — End-to-end Demo"
+echo "Pharos Agent Identity Skill — End-to-end Demo"
 echo "=================================================="
 echo "RPC:        $RPC"
 echo "Agent ID:   $PAID"

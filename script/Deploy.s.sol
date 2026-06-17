@@ -21,7 +21,7 @@ contract DeployIdentitySkill is Script {
         }
         address deployer = vm.addr(deployerKey);
 
-        console.log("Deploying Pharos Identity Skill");
+        console.log("Deploying Pharos Agent Identity Skill");
         console.log("  Deployer:    ", deployer);
         console.log("  Chain ID:    ", block.chainid);
 

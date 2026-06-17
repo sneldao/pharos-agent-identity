@@ -1,4 +1,4 @@
-# Pharos Identity Skill
+# Pharos Agent Identity Skill
 
 > **Portable on-chain identity and verifiable credentials for agents on the Pharos Network.**
 >
@@ -10,21 +10,21 @@
 
 ## What this is
 
-The **Pharos Identity Skill** is the portable identity and credential layer for AI agents on the Pharos Network. It ships as four on-chain **Skills** that other agents and contracts can compose:
+The **Pharos Agent Identity Skill** is the portable identity and credential layer for AI agents on the Pharos Network. It ships as four on-chain **Skills** that other agents and contracts can compose:
 
 | Skill | What it does | On-chain action |
 |---|---|---|
-| `pharos-identity-issue` | Mint a portable Agent ID NFT; issue an EIP-712 capability credential | `PharosAgentID.mintSelf/mint`, `CredentialRegistry.issue` |
-| `pharos-identity-verify` | Read-only check: does a subject hold a valid credential for a capability? | `CredentialRegistry.isCapable` |
-| `pharos-identity-revoke` | Issuer revokes a previously-issued credential | `CredentialRegistry.revoke` |
-| `pharos-identity-rotate` | Move the Agent ID to a new controller key (compromised-key recovery) | `PharosAgentID.rotate` |
+| `pharos-agent-identity-issue` | Mint a portable Agent ID NFT; issue an EIP-712 capability credential | `PharosAgentID.mintSelf/mint`, `CredentialRegistry.issue` |
+| `pharos-agent-identity-verify` | Read-only check: does a subject hold a valid credential for a capability? | `CredentialRegistry.isCapable` |
+| `pharos-agent-identity-revoke` | Issuer revokes a previously-issued credential | `CredentialRegistry.revoke` |
+| `pharos-agent-identity-rotate` | Move the Agent ID to a new controller key (compromised-key recovery) | `PharosAgentID.rotate` |
 
 Plus two helpers:
 
 | Helper | What it does |
 |---|---|
-| `pharos-identity-hash` | `keccak256("agent.commerce.escrow")` → `0x...` |
-| `pharos-identity-sign` | Issuer-side helper: build and sign an EIP-712 credential off-chain |
+| `pharos-agent-identity-hash` | `keccak256("agent.commerce.escrow")` → `0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8` |
+| `pharos-agent-identity-sign` | Issuer-side helper: build and sign an EIP-712 credential off-chain |
 
 ## Why this matters
 
@@ -39,14 +39,16 @@ This Skill makes identity **explicit, portable, and rotatable**:
 
 ## What's deployed
 
-Both contracts are deployed to **Pharos Atlantic testnet** (chainId 688689):
+Both contracts are live on **Pharos Atlantic testnet** (chainId 688689):
 
-| Contract | Address | Explorer |
-|----------|---------|----------|
-| `PharosAgentID` | `0x...` | [atlantic.pharosscan.xyz](https://atlantic.pharosscan.xyz) |
-| `CredentialRegistry` | `0x...` | [atlantic.pharosscan.xyz](https://atlantic.pharosscan.xyz) |
+| Contract | Address | Pharos Scan |
+|----------|---------|-------------|
+| `PharosAgentID` | `0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8` | [View](https://atlantic.pharosscan.xyz/address/0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8) |
+| `CredentialRegistry` | `0xf583421A8e11aEB42d26798F285dc590A992e488` | [View](https://atlantic.pharosscan.xyz/address/0xf583421A8e11aEB42d26798F285dc590A992e488) |
 
-(Addresses filled in after `scripts/deploy.sh atlantic` is run. The `assets/deployment.json` is the source of truth.)
+Deploy with `bash scripts/deploy.sh atlantic` (requires testnet PHRS in the deployer
+wallet). The source of truth for chain config and deployment addresses is
+`assets/networks.json` (the `deployment.atlantic-testnet` block).
 
 ## Repository layout
 
@@ -83,7 +85,7 @@ Both contracts are deployed to **Pharos Atlantic testnet** (chainId 688689):
 │   ├── PharosAgentID.sol           # ERC-721 portable agent identity
 │   ├── CredentialRegistry.sol      # EIP-712 verifiable credential registry
 │   ├── mcp/server.ts               # MCP server (6 tools)
-│   └── cli/index.ts                # CLI (pharos-identity)
+│   └── cli/index.ts                # CLI (pharos-agent-identity)
 │
 ├── test/
 │   ├── PharosAgentID.t.sol         # 17 tests
@@ -102,15 +104,15 @@ If the contracts are already deployed (the `assets/deployment.json` has real add
 ./install.sh
 
 # Mint an Agent ID for the current wallet
-PRIVATE_KEY=0x... npx tsx src/cli/index.ts issue --token-uri "ipfs://bafy.../meta"
+PRIVATE_KEY=0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8 npx tsx src/cli/index.ts issue --token-uri "ipfs://bafy.../meta"
 
 # Verify a credential (read-only)
-npx tsx src/cli/index.ts verify --subject 0x... --capability "agent.commerce.escrow"
+npx tsx src/cli/index.ts verify --subject 0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8 --capability "agent.commerce.escrow"
 
 # Sign and submit a credential (issuer-side)
-PRIVATE_KEY=0x... npx tsx src/cli/index.ts sign \
-  --issuer-key 0x... \
-  --subject 0x... \
+PRIVATE_KEY=0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8 npx tsx src/cli/index.ts sign \
+  --issuer-key 0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8 \
+  --subject 0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8 \
   --capability "agent.commerce.escrow" \
   --expires-in 2592000
 ```
@@ -129,7 +131,7 @@ npm install
 #    or ask in the Pharos Discord / Telegram
 
 # 4. Set your private key
-export PRIVATE_KEY=0x...   # your testnet wallet, NEVER commit this
+export PRIVATE_KEY=0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8   # your testnet wallet, NEVER commit this
 
 # 5. Build and test
 forge build

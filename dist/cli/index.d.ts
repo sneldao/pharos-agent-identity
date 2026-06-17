@@ -1,13 +1,14 @@
 /**
- * Pharos Identity Skill — CLI
+ * Pharos Agent Identity Skill — CLI
  *
  * Usage:
- *   pharos-identity issue [--token-uri <uri>] [--controller <addr>]
- *   pharos-identity verify --subject <addr> --capability <name|hash> [--issuer <addr>]
- *   pharos-identity revoke --subject <addr> --capability <name|hash> --nonce <n> [--issuer-key <key>]
- *   pharos-identity rotate --token-id <id> --new-controller <addr>
- *   pharos-identity hash --capability <name>
- *   pharos-identity sign --issuer-key <key> --subject <addr> --capability <name|hash> [--expires-in <seconds>]
- *   pharos-identity info
+ *   pharos-agent-identity issue [--token-uri <uri>] [--controller <addr>]
+ *   pharos-agent-identity verify --subject <addr> --capability <name|hash> [--issuer <addr>]
+ *   pharos-agent-identity revoke --subject <addr> --capability <name|hash> --nonce <n> [--issuer-key <key>]
+ *   pharos-agent-identity rotate --token-id <id> --new-controller <addr>
+ *   pharos-agent-identity hash --capability <name>
+ *   pharos-agent-identity sign --issuer-key <key> --subject <addr> --capability <name|hash> [--expires-in <seconds>]
+ *   pharos-agent-identity info
  */
-export {};
+import { CREDENTIAL_REGISTRY_ABI, PHAROS_AGENT_ID_ABI } from "../lib/index.js";
+export { PHAROS_AGENT_ID_ABI, CREDENTIAL_REGISTRY_ABI };

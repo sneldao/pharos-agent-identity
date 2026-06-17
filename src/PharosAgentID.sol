@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 /// @title PharosAgentID
 /// @notice Minimal ERC-721 soulbound-style NFT that mints a portable agent identifier bound to a
-///         controller wallet. Used as the anchor identity for the Pharos Identity Skill. One ID per
+///         controller wallet. Used as the anchor identity for the Pharos Agent Identity Skill. One ID per
 ///         agent. The NFT owner is the agent's controller; key rotation is `transferFrom`; revocation
 ///         is `burn`. Off-chain metadata (name, description, capabilities index) lives at `tokenURI`.
 /// @dev Intentionally simple so it composes with any wallet, Safe, or session-key module. The

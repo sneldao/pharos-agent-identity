@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 /// @title CredentialRegistry
-/// @notice EIP-712 verifiable credential registry for the Pharos Identity Skill. An authorized
+/// @notice EIP-712 verifiable credential registry for the Pharos Agent Identity Skill. An authorized
 ///         `issuer` (e.g. a KYC provider, a DAO, a marketplace) signs an attestation stating that
 ///         `subject` (an agent's controller wallet) holds a given `capability`. Other Skills (Aegis,
 ///         FaroLink, Maestro, etc.) gate access by calling `isCapable`.
