@@ -4,6 +4,14 @@ pragma solidity ^0.8.24;
 import "forge-std/Test.sol";
 import "../src/PharosAgentID.sol";
 
+contract GoodReceiver is IERC721Receiver {
+    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
+    }
+}
+
+contract BadReceiver {}
+
 contract PharosAgentIDTest is Test {
     PharosAgentID internal id;
 
@@ -11,6 +19,7 @@ contract PharosAgentIDTest is Test {
     address internal bob = makeAddr("bob");
     address internal carol = makeAddr("carol");
 
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
     event AgentMinted(uint256 indexed tokenId, address indexed controller, string tokenURI);
     event AgentRotated(uint256 indexed tokenId, address indexed from, address indexed to);
     event AgentRevoked(uint256 indexed tokenId, address indexed controller);
@@ -20,6 +29,8 @@ contract PharosAgentIDTest is Test {
     }
 
     function test_Mint() public {
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(address(0), alice, 1);
         vm.expectEmit(true, true, false, true);
         emit AgentMinted(1, alice, "ipfs://meta-1");
         uint256 tokenId = id.mint(alice, "ipfs://meta-1");
@@ -52,6 +63,8 @@ contract PharosAgentIDTest is Test {
     function test_Rotate() public {
         id.mint(alice, "ipfs://a");
         vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, bob, 1);
         vm.expectEmit(true, true, true, false);
         emit AgentRotated(1, alice, bob);
         id.rotate(1, bob);
@@ -64,8 +77,26 @@ contract PharosAgentIDTest is Test {
     function test_RotateViaTransferFrom() public {
         id.mint(alice, "ipfs://a");
         vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, bob, 1);
         id.transferFrom(alice, bob, 1);
         assertEq(id.ownerOf(1), bob);
+    }
+
+    function test_SafeTransferToReceiverContract() public {
+        GoodReceiver receiver = new GoodReceiver();
+        id.mint(alice, "ipfs://a");
+        vm.prank(alice);
+        id.safeTransferFrom(alice, address(receiver), 1);
+        assertEq(id.ownerOf(1), address(receiver));
+    }
+
+    function test_RevertWhen_SafeTransferToNonReceiverContract() public {
+        BadReceiver receiver = new BadReceiver();
+        id.mint(alice, "ipfs://a");
+        vm.prank(alice);
+        vm.expectRevert(bytes("PharosAgentID: non-ERC721Receiver"));
+        id.safeTransferFrom(alice, address(receiver), 1);
     }
 
     function test_RevertWhen_RotateByNonController() public {
@@ -93,6 +124,8 @@ contract PharosAgentIDTest is Test {
     function test_Revoke() public {
         id.mint(alice, "ipfs://a");
         vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, address(0), 1);
         vm.expectEmit(true, true, false, false);
         emit AgentRevoked(1, alice);
         id.revoke(1);

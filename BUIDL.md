@@ -104,7 +104,7 @@ layer.
 ### What's actually shipped
 
 - **2 Solidity contracts** (`PharosAgentID.sol`, `CredentialRegistry.sol`)
-  on Pharos Atlantic (chainId 688689), 100% Foundry test coverage (35 tests).
+  on Pharos Atlantic (chainId 688689), 100% Foundry test coverage (41 tests, including fuzz tests).
 - **CLI** (`dist/cli/index.js`): 7 commands (info, hash, issue, verify, revoke,
   rotate, sign) — every command prints JSON for downstream Skills to consume.
 - **MCP server** (`dist/mcp/server.js`): 6 tools that an agent can call
@@ -147,6 +147,19 @@ The dual cascade works like this: the **identity cascade** is this Skill
 calling `isCapable(subject, capabilityHash)` to gate their flows. With this
 Skill shipping, the other 5+ Phase 1 Skills can stop re-implementing access
 control and start composing.
+
+### Final hardening pass (post-review)
+
+After an internal audit, the following improvements were applied without changing any public function signatures:
+
+- **ERC-721 compliance**: `PharosAgentID` now emits standard `Transfer` events on `mint`, `rotate`, `revoke`, and `transferFrom`, making the NFT fully trackable by indexers, marketplaces, and wallet UIs.
+- **`safeTransferFrom` safety**: Added `IERC721Receiver` checks so transfers to contracts that do not implement `onERC721Received` revert cleanly (previously it was just a passthrough to `transferFrom`).
+- **ABI event alignment**: The TypeScript ABI (`src/lib/abi.ts`) now matches the exact Solidity event names (`AgentMinted`, `AgentRotated`, `AgentRevoked`, `MetadataUpdated`), fixing silent event-decoding failures.
+- **Bounded registry scans**: `CredentialRegistry.revoke` now scans at most 50 nonces when recomputing the latest valid credential, preventing unbounded gas griefing. `latestCredential` and `getCredential` no longer iterate backward — they use O(1) existence flags and exact nonce lookups.
+- **O(1) issuer-specific checks**: `isCapableFromIssuer` now reads from a per-issuer latest-valid nonce tracker instead of iterating backward, making it safe for on-chain callers.
+- **Fuzz tests**: Added 3 Foundry fuzz tests covering valid signature issuance, wrong-nonce rejection, and revocation edge cases (256 runs each).
+- **Documentation fix**: `SKILL.md` and `README.md` now correctly state that credentials are wallet-bound and must be re-issued after key rotation.
+- **Capability hashes**: `assets/credentials.example.json` now contains actual `keccak256` hashes instead of placeholder values.
 
 ### Security posture
 
@@ -233,7 +246,7 @@ Solo submitter: `<your name>`
 ## Submission checklist
 
 - [x] 2 Solidity contracts (ERC-721 + EIP-712 registry)
-- [x] 35/35 Foundry tests passing
+- [x] 41/41 Foundry tests passing (including fuzz tests)
 - [x] Solidity 0.8.24, no warnings, optimizer on
 - [x] Deployed to Pharos Atlantic testnet (chainId 688689) — see tx hashes above
 - [ ] Source verified on Pharos Scan (socialscan API returned 404 at submission; re-run `bash scripts/verify.sh atlantic` once it's back)

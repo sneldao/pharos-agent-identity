@@ -38,35 +38,6 @@ contract CredentialRegistryTest is Test {
         vm.warp(1_750_000_000);
     }
 
-    function _signCredential(
-        address signer,
-        address _subject,
-        bytes32 cap,
-        uint64 issuedAt,
-        uint64 expiresAt,
-        uint256 nonce
-    ) internal view returns (bytes memory) {
-        bytes32 structHash = keccak256(
-            abi.encode(
-                keccak256(
-                    "Credential(address issuer,address subject,bytes32 capabilityHash,uint256 issuedAt,uint256 expiresAt,uint256 nonce)"
-                ),
-                signer,
-                _subject,
-                cap,
-                uint256(issuedAt),
-                uint256(expiresAt),
-                nonce
-            )
-        );
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", registry.DOMAIN_SEPARATOR(), structHash));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer == address(this) ? 1 : uint256(uint160(signer)), digest);
-        // vm.sign expects the private key directly. We need the actual priv keys for our actors.
-        // Switch to the explicit test below using uint priv keys.
-        v; r; s;
-        revert("use _signWithPrivKey");
-    }
-
     function _signWithPrivKey(
         uint256 privKey,
         address _issuer,
@@ -319,5 +290,60 @@ contract CredentialRegistryTest is Test {
         assertTrue(registry.isCapable(subject, CAP));
         assertTrue(registry.isCapable(subj2, CAP));
         assertFalse(registry.isCapable(other, CAP));
+    }
+
+    function test_GetCredentialReturnsExactNonce() public {
+        uint256 issuerKey = 0xBEEF;
+        address computedIssuer = vm.addr(issuerKey);
+        bytes memory sig0 = _signWithPrivKey(issuerKey, computedIssuer, subject, CAP, ISSUED, EXPIRES, 0);
+        registry.issue(computedIssuer, subject, CAP, ISSUED, EXPIRES, 0, sig0);
+
+        CredentialRegistry.CredentialView memory missing = registry.getCredential(subject, CAP, 1);
+        assertEq(missing.issuer, address(0));
+        assertFalse(missing.valid);
+
+        CredentialRegistry.CredentialView memory existing = registry.getCredential(subject, CAP, 0);
+        assertEq(existing.issuer, computedIssuer);
+        assertTrue(existing.valid);
+    }
+
+    function testFuzz_IssueCredentialWithValidSignature(uint128 rawKey, address fuzzSubject, bytes32 cap) public {
+        uint256 issuerKey = uint256(bound(rawKey, 1, type(uint128).max));
+        address computedIssuer = vm.addr(issuerKey);
+        vm.assume(fuzzSubject != address(0));
+        bytes memory sig = _signWithPrivKey(issuerKey, computedIssuer, fuzzSubject, cap, ISSUED, EXPIRES, 0);
+
+        uint256 usedNonce = registry.issue(computedIssuer, fuzzSubject, cap, ISSUED, EXPIRES, 0, sig);
+
+        assertEq(usedNonce, 0);
+        assertEq(registry.issuerNonce(computedIssuer), 1);
+        assertTrue(registry.isCapable(fuzzSubject, cap));
+        assertTrue(registry.isCapableFromIssuer(fuzzSubject, cap, computedIssuer));
+    }
+
+    function testFuzz_RevertWhen_NonceDoesNotMatchIssuerNonce(uint128 rawKey, uint64 nonce) public {
+        uint256 issuerKey = uint256(bound(rawKey, 1, type(uint128).max));
+        uint256 badNonce = uint256(bound(nonce, 1, type(uint64).max));
+        address computedIssuer = vm.addr(issuerKey);
+        bytes memory sig = _signWithPrivKey(issuerKey, computedIssuer, subject, CAP, ISSUED, EXPIRES, badNonce);
+
+        vm.expectRevert(CredentialRegistry.InvalidSignature.selector);
+        registry.issue(computedIssuer, subject, CAP, ISSUED, EXPIRES, badNonce, sig);
+    }
+
+    function testFuzz_RevokeIssuedCredential(uint128 rawKey, bytes32 cap) public {
+        uint256 issuerKey = uint256(bound(rawKey, 1, type(uint128).max));
+        address computedIssuer = vm.addr(issuerKey);
+        bytes memory sig = _signWithPrivKey(issuerKey, computedIssuer, subject, cap, ISSUED, EXPIRES, 0);
+        registry.issue(computedIssuer, subject, cap, ISSUED, EXPIRES, 0, sig);
+
+        vm.prank(computedIssuer);
+        registry.revoke(subject, cap, 0);
+
+        assertFalse(registry.isCapable(subject, cap));
+        assertFalse(registry.isCapableFromIssuer(subject, cap, computedIssuer));
+        CredentialRegistry.CredentialView memory v = registry.getCredential(subject, cap, 0);
+        assertTrue(v.revoked);
+        assertFalse(v.valid);
     }
 }

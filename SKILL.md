@@ -86,8 +86,8 @@ permanent and the credential stops being valid immediately.
 
 ### `pharos-agent-identity-rotate` — write
 Move the agent ID NFT to a new controller wallet. This is the canonical "key rotation"
-path: a compromised key can be rotated without losing accumulated credentials, because
-credentials resolve by wallet address — move the ID to the new key, credentials follow.
+path for preserving the portable Agent ID. Credentials are wallet-bound attestations, so
+issuers should reissue any required credentials to the new controller after rotation.
 
 ## Capability namespace
 

@@ -32,6 +32,7 @@ contract CredentialRegistry {
     bytes32 private constant CREDENTIAL_TYPEHASH = keccak256(
         "Credential(address issuer,address subject,bytes32 capabilityHash,uint256 issuedAt,uint256 expiresAt,uint256 nonce)"
     );
+    uint256 private constant MAX_REVOKE_SCAN = 50;
 
     // issuer => nonce (each issuer keeps its own counter; this is the nonce the issuer must include)
     mapping(address => uint256) public issuerNonce;
@@ -43,10 +44,13 @@ contract CredentialRegistry {
     // We need this separate from `_latestValidNonce` because a credential issued with nonce 0 is
     // indistinguishable from "no credential" if we only check the nonce value.
     mapping(address => mapping(bytes32 => bool)) private _hasValid;
+    mapping(address => mapping(bytes32 => bool)) private _hasCredential;
 
     // quick existence flags so verify() doesn't have to iterate
     mapping(address => mapping(bytes32 => uint256)) private _latestNonce; // newest issued
     mapping(address => mapping(bytes32 => uint256)) private _latestValidNonce; // newest not revoked & not expired
+    mapping(address => mapping(bytes32 => mapping(address => bool))) private _hasValidFromIssuer;
+    mapping(address => mapping(bytes32 => mapping(address => uint256))) private _latestValidNonceFromIssuer;
 
     event CredentialIssued(
         address indexed issuer,
@@ -120,12 +124,15 @@ contract CredentialRegistry {
             nonce: uint64(nonce)
         });
 
-        if (nonce > _latestNonce[subject][capabilityHash]) {
+        if (!_hasCredential[subject][capabilityHash] || nonce > _latestNonce[subject][capabilityHash]) {
             _latestNonce[subject][capabilityHash] = nonce;
         }
+        _hasCredential[subject][capabilityHash] = true;
         // The new credential is valid (just issued, not revoked, not expired). Track it.
         _latestValidNonce[subject][capabilityHash] = nonce;
         _hasValid[subject][capabilityHash] = true;
+        _latestValidNonceFromIssuer[subject][capabilityHash][issuer] = nonce;
+        _hasValidFromIssuer[subject][capabilityHash][issuer] = true;
 
         issuerNonce[issuer] = nonce + 1;
 
@@ -143,19 +150,27 @@ contract CredentialRegistry {
 
         cred.revokedAt = uint64(block.timestamp);
 
-        // If this was the "latest valid" entry, recompute by scanning recent nonces.
+        if (_latestValidNonceFromIssuer[subject][capabilityHash][cred.issuer] == nonce) {
+            _hasValidFromIssuer[subject][capabilityHash][cred.issuer] = false;
+            _latestValidNonceFromIssuer[subject][capabilityHash][cred.issuer] = 0;
+        }
+
+        // If this was the "latest valid" entry, recompute by scanning a bounded recent window.
         if (_latestValidNonce[subject][capabilityHash] == nonce) {
             _hasValid[subject][capabilityHash] = false;
             _latestValidNonce[subject][capabilityHash] = 0;
             uint256 top = _latestNonce[subject][capabilityHash];
-            for (uint256 i = top; i > 0; i--) {
+            uint256 scanned = 0;
+            for (uint256 i = top;; i--) {
+                if (scanned >= MAX_REVOKE_SCAN) break;
+                scanned++;
                 Credential storage c = _credentials[subject][capabilityHash][i];
-                if (c.issuer == address(0)) continue;
-                if (c.revokedAt != 0) continue;
-                if (block.timestamp > c.expiresAt) continue;
-                _hasValid[subject][capabilityHash] = true;
-                _latestValidNonce[subject][capabilityHash] = i;
-                break;
+                if (c.issuer != address(0) && c.revokedAt == 0 && block.timestamp <= c.expiresAt) {
+                    _hasValid[subject][capabilityHash] = true;
+                    _latestValidNonce[subject][capabilityHash] = i;
+                    break;
+                }
+                if (i == 0) break;
             }
         }
 
@@ -184,42 +199,24 @@ contract CredentialRegistry {
         bytes32 capabilityHash,
         address issuer
     ) external view returns (bool) {
-        // Iterate from the latest issued nonce down to 0, inclusive. Credentials can exist at
-        // any nonce including 0, so we cannot use a strict "i > 0" bound.
-        uint256 top = _latestNonce[subject][capabilityHash];
-        for (uint256 i = top;; i--) {
-            Credential storage c = _credentials[subject][capabilityHash][i];
-            if (
-                c.issuer != address(0) &&
-                c.issuer == issuer &&
-                c.revokedAt == 0 &&
-                block.timestamp <= c.expiresAt
-            ) {
-                return true;
-            }
-            if (i == 0) break;
-        }
-        return false;
+        if (!_hasValidFromIssuer[subject][capabilityHash][issuer]) return false;
+        uint256 nonce = _latestValidNonceFromIssuer[subject][capabilityHash][issuer];
+        Credential storage c = _credentials[subject][capabilityHash][nonce];
+        if (c.issuer != issuer) return false;
+        if (c.revokedAt != 0) return false;
+        if (block.timestamp > c.expiresAt) return false;
+        return true;
     }
 
     /// @notice Read the latest credential view for a (subject, capability) pair, regardless of
     ///         validity. Used by UIs and Agents that want to surface status.
     function latestCredential(address subject, bytes32 capabilityHash) external view returns (CredentialView memory) {
-        uint256 top = _latestNonce[subject][capabilityHash];
-        for (uint256 i = top;; i--) {
-            Credential storage c = _credentials[subject][capabilityHash][i];
-            if (c.issuer != address(0)) {
-                bool valid = _hasValid[subject][capabilityHash] && _latestValidNonce[subject][capabilityHash] == i;
-                // _hasValid may be true but pointing at a different (older) nonce if the latest
-                // was revoked; recompute the validity inline for the latest issued.
-                if (valid || (c.revokedAt == 0 && block.timestamp <= c.expiresAt)) {
-                    return CredentialView(c.issuer, c.issuedAt, c.expiresAt, c.revokedAt != 0, true);
-                }
-                return CredentialView(c.issuer, c.issuedAt, c.expiresAt, c.revokedAt != 0, false);
-            }
-            if (i == 0) break;
-        }
-        return CredentialView(address(0), 0, 0, false, false);
+        if (!_hasCredential[subject][capabilityHash]) return CredentialView(address(0), 0, 0, false, false);
+        uint256 nonce = _latestNonce[subject][capabilityHash];
+        Credential storage c = _credentials[subject][capabilityHash][nonce];
+        if (c.issuer == address(0)) return CredentialView(address(0), 0, 0, false, false);
+        bool valid = c.revokedAt == 0 && block.timestamp <= c.expiresAt;
+        return CredentialView(c.issuer, c.issuedAt, c.expiresAt, c.revokedAt != 0, valid);
     }
 
     function getCredential(
@@ -227,17 +224,10 @@ contract CredentialRegistry {
         bytes32 capabilityHash,
         uint256 nonce
     ) external view returns (CredentialView memory) {
-        // Iterate from `nonce` down to 0, inclusive, until we find a populated credential slot.
-        // This makes the function work for any nonce value, including 0.
-        for (uint256 i = nonce;; i--) {
-            Credential storage c = _credentials[subject][capabilityHash][i];
-            if (c.issuer != address(0)) {
-                bool valid = c.revokedAt == 0 && block.timestamp <= c.expiresAt;
-                return CredentialView(c.issuer, c.issuedAt, c.expiresAt, c.revokedAt != 0, valid);
-            }
-            if (i == 0) break;
-        }
-        return CredentialView(address(0), 0, 0, false, false);
+        Credential storage c = _credentials[subject][capabilityHash][nonce];
+        if (c.issuer == address(0)) return CredentialView(address(0), 0, 0, false, false);
+        bool valid = c.revokedAt == 0 && block.timestamp <= c.expiresAt;
+        return CredentialView(c.issuer, c.issuedAt, c.expiresAt, c.revokedAt != 0, valid);
     }
 
     // ---------- EIP-712 helpers ----------

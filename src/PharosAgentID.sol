@@ -8,7 +8,14 @@ pragma solidity ^0.8.24;
 ///         is `burn`. Off-chain metadata (name, description, capabilities index) lives at `tokenURI`.
 /// @dev Intentionally simple so it composes with any wallet, Safe, or session-key module. The
 ///      `CredentialRegistry` looks up IDs by wallet via `walletOfAgent`.
+interface IERC721Receiver {
+    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
+        external
+        returns (bytes4);
+}
+
 contract PharosAgentID {
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
     event AgentMinted(uint256 indexed tokenId, address indexed controller, string tokenURI);
     event AgentRotated(uint256 indexed tokenId, address indexed from, address indexed to);
     event AgentRevoked(uint256 indexed tokenId, address indexed controller);
@@ -37,6 +44,7 @@ contract PharosAgentID {
         _tokenOfWallet[controller] = tokenId;
         _tokenURIs[tokenId] = tokenURI_;
 
+        emit Transfer(address(0), controller, tokenId);
         emit AgentMinted(tokenId, controller, tokenURI_);
     }
 
@@ -60,6 +68,7 @@ contract PharosAgentID {
         _owners[tokenId] = newController;
         _tokenOfWallet[newController] = tokenId;
 
+        emit Transfer(current, newController, tokenId);
         emit AgentRotated(tokenId, current, newController);
     }
 
@@ -73,6 +82,7 @@ contract PharosAgentID {
         delete _tokenOfWallet[current];
         delete _tokenURIs[tokenId];
 
+        emit Transfer(current, address(0), tokenId);
         emit AgentRevoked(tokenId, current);
     }
 
@@ -149,15 +159,30 @@ contract PharosAgentID {
         _owners[tokenId] = to;
         _tokenOfWallet[to] = tokenId;
 
+        emit Transfer(from, to, tokenId);
         emit AgentRotated(tokenId, from, to);
     }
 
     function safeTransferFrom(address from, address to, uint256 tokenId) external {
         transferFrom(from, to, tokenId);
+        _checkOnERC721Received(from, to, tokenId, "");
     }
 
-    function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata) external {
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) external {
         transferFrom(from, to, tokenId);
+        _checkOnERC721Received(from, to, tokenId, data);
+    }
+
+    function _checkOnERC721Received(address from, address to, uint256 tokenId, bytes memory data) internal {
+        if (to.code.length == 0) return;
+        try IERC721Receiver(to).onERC721Received(msg.sender, from, tokenId, data) returns (bytes4 retval) {
+            require(retval == IERC721Receiver.onERC721Received.selector, "PharosAgentID: unsafe recipient");
+        } catch (bytes memory reason) {
+            if (reason.length == 0) revert("PharosAgentID: non-ERC721Receiver");
+            assembly {
+                revert(add(32, reason), mload(reason))
+            }
+        }
     }
 
     // ERC-165

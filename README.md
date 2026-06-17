@@ -4,7 +4,7 @@
 >
 > Built for the [Pharos Skill-to-Agent Dual Cascade Hackathon](https://dorahacks.io/hackathon/pharos-phase1) — Phase 1 (Skill Hackathon).
 >
-> 35 Foundry tests passing. 6 reference docs. 4 on-chain Skills + 2 helpers. MCP server. CLI. Director-routing `SKILL.md`. MIT.
+> 41 Foundry tests passing (including fuzz tests). 6 reference docs. 4 on-chain Skills + 2 helpers. MCP server. CLI. Director-routing `SKILL.md`. MIT.
 
 ---
 
@@ -34,7 +34,7 @@ This Skill makes identity **explicit, portable, and rotatable**:
 
 - **Explicit** — the agent has an on-chain `PharosAgentID` NFT bound to its controller wallet. Look it up via `walletOfAgent(addr)`.
 - **Portable** — credentials are EIP-712 signed off-chain by the issuer (a KYC provider, a DAO, a marketplace operator) and stored on-chain. They survive across Skills: a single `kyc.basic` credential is recognized by Aegis, FaroLink, and Maestro without re-KYCing.
-- **Rotatable** — when a key is compromised, the agent calls `rotate()` to move the ID NFT to a new controller. Credentials need to be re-issued (because they're bound to a wallet address, not a private key), but the new controller starts from a clean slate.
+- **Rotatable** — when a key is compromised, the agent calls `rotate()` to move the ID NFT to a new controller. The ID NFT is preserved, but wallet-bound credentials do not automatically follow; issuers should re-issue any required credentials to the new controller.
 - **Composable** — `CredentialRegistry.isCapable(subject, capHash)` is a `view` call that any contract can use to gate access. One line of Solidity: `require(creds.isCapable(payer, KYC_HASH), "not KYCed")`.
 
 ## What's deployed
@@ -88,8 +88,8 @@ wallet). The source of truth for chain config and deployment addresses is
 │   └── cli/index.ts                # CLI (pharos-agent-identity)
 │
 ├── test/
-│   ├── PharosAgentID.t.sol         # 17 tests
-│   └── CredentialRegistry.t.sol    # 18 tests
+│   ├── PharosAgentID.t.sol         # 19 tests (including Transfer events + safeTransferFrom)
+│   └── CredentialRegistry.t.sol    # 22 tests (including fuzz tests + exact nonce)
 │
 └── script/
     └── Deploy.s.sol                # forge deployment script
@@ -104,15 +104,15 @@ If the contracts are already deployed (the `assets/deployment.json` has real add
 ./install.sh
 
 # Mint an Agent ID for the current wallet
-PRIVATE_KEY=0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8 npx tsx src/cli/index.ts issue --token-uri "ipfs://bafy.../meta"
+PRIVATE_KEY=0x<YOUR_TESTNET_PRIVATE_KEY> npx tsx src/cli/index.ts issue --token-uri "ipfs://bafy.../meta"
 
 # Verify a credential (read-only)
-npx tsx src/cli/index.ts verify --subject 0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8 --capability "agent.commerce.escrow"
+npx tsx src/cli/index.ts verify --subject 0x<SUBJECT_WALLET_ADDRESS> --capability "agent.commerce.escrow"
 
 # Sign and submit a credential (issuer-side)
-PRIVATE_KEY=0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8 npx tsx src/cli/index.ts sign \
-  --issuer-key 0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8 \
-  --subject 0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8 \
+PRIVATE_KEY=0x<YOUR_TESTNET_PRIVATE_KEY> npx tsx src/cli/index.ts sign \
+  --issuer-key 0x<YOUR_TESTNET_PRIVATE_KEY> \
+  --subject 0x<SUBJECT_WALLET_ADDRESS> \
   --capability "agent.commerce.escrow" \
   --expires-in 2592000
 ```
@@ -131,7 +131,7 @@ npm install
 #    or ask in the Pharos Discord / Telegram
 
 # 4. Set your private key
-export PRIVATE_KEY=0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8   # your testnet wallet, NEVER commit this
+export PRIVATE_KEY=0x<YOUR_TESTNET_PRIVATE_KEY>   # your testnet wallet, NEVER commit this
 
 # 5. Build and test
 forge build
@@ -201,7 +201,7 @@ CertiK pre-scan: the Skill package invokes only documented `cast`/`forge` comman
 | Criterion | How this Skill addresses it |
 |-----------|-----------------------------|
 | **Originality** | No other Phase 1 submission is shipping a portable identity + credential layer. Aegis/Warden/Maestro/Pact/Pharos NFT Manager are all payment rails; this is the missing trust substrate. |
-| **Technical quality** | 35 Foundry tests, 100% pass; 0 OpenZeppelin deps (minimal, auditable Solidity); reentrancy-safe by virtue of no fund custody; EIP-712 replay protection. |
+| **Technical quality** | 41 Foundry tests (including fuzz tests), 100% pass; 0 OpenZeppelin deps (minimal, auditable Solidity); ERC-721 Transfer event compliance; `safeTransferFrom` receiver safety; bounded credential registry scans; EIP-712 replay protection. |
 | **Practical use** | Every other Skill in the field can call `isCapable(subject, capHash)` in one line of Solidity. This is the **glue** that makes the agent economy work. |
 | **Reusability** | 4 composable Skills + 2 helpers, each independently usable. Director pattern in `SKILL.md` makes routing obvious for AI agents. |
 | **Deployed on Pharos** | Both contracts deployed to Atlantic (chain 688689), verified via the socialscan API. |
