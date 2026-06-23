@@ -28,9 +28,6 @@
       ],
       "@ligis/abi": [
         "../src/lib/abi.ts"
-      ],
-      "@ligis/types": [
-        "../src/lib/types.ts"
       ]
     }
   },
@@ -39,7 +36,6 @@
     "**/*.ts",
     "**/*.tsx",
     "../src/lib/abi.ts",
-    "../src/lib/types.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],

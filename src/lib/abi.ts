@@ -4,7 +4,6 @@
  * These are used by both the CLI (src/cli/index.ts) and the MCP server
  * (src/mcp/server.ts) to avoid drift between the two surfaces.
  */
-import type { Abi } from "viem";
 
 export const PHAROS_AGENT_ID_ABI = [
   // ERC-721 metadata
