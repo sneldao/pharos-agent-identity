@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { recordVisit } from "@/lib/recent-agents";
 
 export function ShareRow({
   url,
   text,
+  agentAddress,
 }: {
   url: string;
   text: string;
+  agentAddress?: string;
 }) {
   const [copied, setCopied] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
@@ -15,6 +18,10 @@ export function ShareRow({
   useEffect(() => {
     setCanNativeShare(typeof navigator !== "undefined" && !!navigator.share);
   }, []);
+
+  useEffect(() => {
+    if (agentAddress) recordVisit(agentAddress);
+  }, [agentAddress]);
 
   useEffect(() => {
     if (!copied) return;

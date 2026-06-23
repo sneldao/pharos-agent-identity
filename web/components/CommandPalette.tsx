@@ -3,14 +3,25 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getAddress } from "viem";
-import { isAddressLike } from "@/lib/format";
+import credentialsRef from "../../assets/credentials.example.json";
+import { isAddressLike, truncateAddress } from "@/lib/format";
+import { readRecents, type RecentAgent } from "@/lib/recent-agents";
 
 type Command = {
   id: string;
   label: string;
   hint: string;
   href: string;
+  group?: "recent" | "match" | "nav";
 };
+
+const CAP_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
+
+const REFERENCE_CAPS = credentialsRef.capabilities.map((c) => ({
+  id: c.id,
+  hash: c.hash.toLowerCase(),
+  label: c.label,
+}));
 
 const STATIC: Command[] = [
   { id: "index", label: "Index", hint: "/", href: "/" },
@@ -26,6 +37,7 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
+  const [recents, setRecents] = useState<RecentAgent[]>([]);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -60,6 +72,7 @@ export function CommandPalette() {
     if (open) {
       setQuery("");
       setCursor(0);
+      setRecents(readRecents());
       const id = setTimeout(() => inputRef.current?.focus(), 20);
       return () => clearTimeout(id);
     }
@@ -67,28 +80,66 @@ export function CommandPalette() {
 
   const options = useMemo<Command[]>(() => {
     const q = query.trim();
-    const matches = STATIC.filter(
-      (c) =>
-        !q ||
-        c.label.toLowerCase().includes(q.toLowerCase()) ||
-        c.hint.includes(q.toLowerCase())
-    );
+    const lower = q.toLowerCase();
+    const navMatches: Command[] = STATIC.filter(
+      (c) => !q || c.label.toLowerCase().includes(lower) || c.hint.includes(lower)
+    ).map((c) => ({ ...c, group: "nav" }));
+
     if (isAddressLike(q)) {
       try {
         const checksum = getAddress(q);
         return [
           {
-            id: "agent",
-            label: `Agent ${checksum.slice(0, 6)}··${checksum.slice(-4)}`,
+            id: "agent-jump",
+            label: `Agent ${truncateAddress(checksum, 6, 4)}`,
             hint: `/agent/${checksum}`,
             href: `/agent/${checksum}`,
+            group: "match",
           },
-          ...matches,
+          ...navMatches,
         ];
       } catch {}
     }
-    return matches;
-  }, [query]);
+
+    if (CAP_HASH_RE.test(q)) {
+      const hit = REFERENCE_CAPS.find((c) => c.hash === lower);
+      if (hit) {
+        return [
+          {
+            id: `cap-${hit.id}`,
+            label: `Capability · ${hit.id}`,
+            hint: hit.label.toLowerCase(),
+            href: "/capabilities",
+            group: "match",
+          },
+          ...navMatches,
+        ];
+      }
+      return [
+        {
+          id: "cap-unknown",
+          label: "Unknown capability hash",
+          hint: "not in the reference set",
+          href: "/capabilities",
+          group: "match",
+        },
+        ...navMatches,
+      ];
+    }
+
+    if (!q && recents.length > 0) {
+      const recentCmds: Command[] = recents.map((r) => ({
+        id: `recent-${r.address}`,
+        label: `Recent · ${truncateAddress(r.address, 6, 4)}`,
+        hint: `/agent/${r.address}`,
+        href: `/agent/${r.address}`,
+        group: "recent",
+      }));
+      return [...recentCmds, ...navMatches];
+    }
+
+    return navMatches;
+  }, [query, recents]);
 
   useEffect(() => {
     if (cursor >= options.length) setCursor(Math.max(0, options.length - 1));

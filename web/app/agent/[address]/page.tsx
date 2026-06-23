@@ -159,9 +159,13 @@ export default async function AgentPage({ params }: { params: Promise<Params> })
         </section>
       ) : null}
 
-      <ShareSection address={address} heldCount={heldCount} firstCapability={
-        snap.held[0]?.capability.id ?? capabilities[0]?.id ?? "kyc.basic"
-      } />
+      <ShareSection
+        address={address}
+        heldCount={heldCount}
+        firstCapability={
+          snap.held[0]?.capability.id ?? capabilities[0]?.id ?? "kyc.basic"
+        }
+      />
 
       <footer className="mt-24 flex items-baseline justify-between text-xs">
         <a
@@ -222,7 +226,7 @@ function ShareSection({
           generated portrait and credential count.
         </p>
         <div className="mt-6">
-          <ShareRow url={url} text={text} />
+          <ShareRow url={url} text={text} agentAddress={address} />
         </div>
       </section>
 
