@@ -28,6 +28,7 @@ export declare class ZeroGCompute implements Reasoner {
  * Initialize a fresh 0G wallet for inference: create a ledger, acknowledge the
  * provider, and transfer funds. Run once per wallet/provider pair.
  *
- * Requires the wallet to hold at least 4 OG (3 for ledger + 1 for provider).
+ * Requires the wallet to hold enough OG for the ledger deposit + provider
+ * funding + gas. Defaults to 0.5 OG ledger + 0.1 OG transfer (minimal setup).
  */
 export declare function setupProvider(config: ZeroGConfig): Promise<void>;

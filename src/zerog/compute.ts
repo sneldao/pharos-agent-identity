@@ -9,10 +9,15 @@
  * map a natural-language goal to required capabilities.
  */
 import { ethers } from "ethers";
-import {
+import { createRequire } from "module";
+// The 0G Compute SDK's ESM build has a broken re-export. Use the CJS build.
+const require = createRequire(import.meta.url);
+const {
   createZGComputeNetworkBroker,
-  type ZGComputeNetworkBroker,
-} from "@0gfoundation/0g-compute-ts-sdk";
+} = require("@0gfoundation/0g-compute-ts-sdk") as {
+  createZGComputeNetworkBroker: typeof import("@0gfoundation/0g-compute-ts-sdk").createZGComputeNetworkBroker;
+};
+type ZGComputeNetworkBroker = import("@0gfoundation/0g-compute-ts-sdk").ZGComputeNetworkBroker;
 
 // ---------- Interface (what the agent depends on) ----------
 
@@ -139,7 +144,8 @@ export class ZeroGCompute implements Reasoner {
  * Initialize a fresh 0G wallet for inference: create a ledger, acknowledge the
  * provider, and transfer funds. Run once per wallet/provider pair.
  *
- * Requires the wallet to hold at least 4 OG (3 for ledger + 1 for provider).
+ * Requires the wallet to hold enough OG for the ledger deposit + provider
+ * funding + gas. Defaults to 0.5 OG ledger + 0.1 OG transfer (minimal setup).
  */
 export async function setupProvider(config: ZeroGConfig): Promise<void> {
   const provider = new ethers.JsonRpcProvider(config.rpcUrl);
@@ -153,6 +159,6 @@ export async function setupProvider(config: ZeroGConfig): Promise<void> {
   await broker.ledger.transferFund(
     config.provider,
     "inference",
-    ethers.parseEther("1.0"),
+    ethers.parseEther("0.1"),
   );
 }

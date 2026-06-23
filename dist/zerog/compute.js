@@ -9,7 +9,10 @@
  * map a natural-language goal to required capabilities.
  */
 import { ethers } from "ethers";
-import { createZGComputeNetworkBroker, } from "@0gfoundation/0g-compute-ts-sdk";
+import { createRequire } from "module";
+// The 0G Compute SDK's ESM build has a broken re-export. Use the CJS build.
+const require = createRequire(import.meta.url);
+const { createZGComputeNetworkBroker, } = require("@0gfoundation/0g-compute-ts-sdk");
 /** Default testnet provider: Gemma 3 27B IT (TeeML-verifiable). */
 const DEFAULT_PROVIDER = "0x69Eb5a0BD7d0f4bF39eD5CE9Bd3376c61863aE08";
 export function loadZeroGConfig() {
@@ -85,7 +88,8 @@ export class ZeroGCompute {
  * Initialize a fresh 0G wallet for inference: create a ledger, acknowledge the
  * provider, and transfer funds. Run once per wallet/provider pair.
  *
- * Requires the wallet to hold at least 4 OG (3 for ledger + 1 for provider).
+ * Requires the wallet to hold enough OG for the ledger deposit + provider
+ * funding + gas. Defaults to 0.5 OG ledger + 0.1 OG transfer (minimal setup).
  */
 export async function setupProvider(config) {
     const provider = new ethers.JsonRpcProvider(config.rpcUrl);
@@ -93,6 +97,6 @@ export async function setupProvider(config) {
     const broker = await createZGComputeNetworkBroker(wallet);
     await broker.ledger.addLedger(3);
     await broker.inference.acknowledgeProviderSigner(config.provider);
-    await broker.ledger.transferFund(config.provider, "inference", ethers.parseEther("1.0"));
+    await broker.ledger.transferFund(config.provider, "inference", ethers.parseEther("0.1"));
 }
 //# sourceMappingURL=compute.js.map

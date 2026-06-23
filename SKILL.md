@@ -31,6 +31,10 @@ for agents operating in the Pharos AI Agent economy. Loads specialist skills for
    source ~/.zshenv && foundryup
    cast --version
    ```
+   > **Note:** If you have another CLI tool called `forge` in your PATH (e.g. at
+   > `~/.local/bin/forge`), it will shadow Foundry's forge. The npm scripts use
+   > `scripts/forge.sh` which finds Foundry's forge at `~/.foundry/bin/forge`
+   > automatically. The deploy/verify scripts do the same.
 2. **Configure Private Key**: set `$PRIVATE_KEY` in the shell. Never commit or hardcode.
 3. **Default network is Pharos Atlantic testnet** (chainId 688689). RPC, explorer, and
    fallback RPCs are loaded from `assets/networks.json`. The deployed contract addresses

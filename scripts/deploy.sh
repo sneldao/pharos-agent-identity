@@ -56,13 +56,20 @@ if [[ -z "${PRIVATE_KEY:-}" ]]; then
   exit 1
 fi
 
-if ! command -v forge >/dev/null 2>&1; then
-  echo "ERROR: forge not found. Install Foundry: curl -L https://foundry.paradigm.xyz | bash && source ~/.zshenv && foundryup" >&2
+if ! command -v forge >/dev/null 2>&1 && [[ ! -x "$HOME/.foundry/bin/forge" ]]; then
+  echo "ERROR: Foundry's forge not found. Install: curl -L https://foundry.paradigm.xyz | bash && source ~/.zshenv && foundryup" >&2
+  echo "Note: if you have a different 'forge' CLI shadowing Foundry's, the deploy script uses ~/.foundry/bin/forge directly." >&2
   exit 1
 fi
 
+# Use Foundry's forge directly (avoids shadowing by other `forge` CLIs)
+FORGE="$HOME/.foundry/bin/forge"
+if [[ ! -x "$FORGE" ]]; then
+  FORGE="forge"
+fi
+
 # Derive the deployer address
-DEPLOYER=$(forge wallet address --private-key "$PRIVATE_KEY" 2>/dev/null || cast wallet address --private-key "$PRIVATE_KEY")
+DEPLOYER=$("$FORGE" wallet address --private-key "$PRIVATE_KEY" 2>/dev/null || cast wallet address --private-key "$PRIVATE_KEY")
 echo "Deployer: $DEPLOYER"
 echo "Network:  $NETWORK_KEY (chainId $CHAIN_ID)"
 echo "RPC:      $RPC"
@@ -102,14 +109,14 @@ if [[ -n "${PHAROS_GAS_PRICE:-}" ]]; then
   echo "Using custom gas price: $PHAROS_GAS_PRICE"
 fi
 DEPLOYMENT_OUT="$ROOT_DIR/.deployment-latest.json" \
-  forge script script/Deploy.s.sol:DeployIdentitySkill \
+  "$FORGE" script script/Deploy.s.sol:DeployIdentitySkill \
   --rpc-url "$RPC" \
   --private-key "$PRIVATE_KEY" \
   --broadcast \
   "${GAS_PRICE_FLAG[@]}"
 
 if [[ ! -f "$ROOT_DIR/.deployment-latest.json" ]]; then
-  echo "ERROR: forge did not write a deployment record. Did the broadcast succeed?" >&2
+  echo "ERROR: $FORGE did not write a deployment record. Did the broadcast succeed?" >&2
   exit 1
 fi
 

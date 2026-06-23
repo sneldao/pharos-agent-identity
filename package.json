@@ -14,14 +14,14 @@
     "dev": "tsx src/cli/index.ts",
     "mcp": "node --enable-source-maps dist/mcp/server.js",
     "mcp:dev": "tsx src/mcp/server.ts",
-    "test": "~/.foundry/bin/forge test -vvv",
+    "test": "bash scripts/forge.sh test -vvv",
     "test:ts": "node --import tsx --test test/ts/*.test.ts",
-    "test:all": "~/.foundry/bin/forge test -vvv && npm run test:ts",
-    "test:coverage": "forge coverage",
+    "test:all": "bash scripts/forge.sh test -vvv && npm run test:ts",
+    "test:coverage": "bash scripts/forge.sh coverage",
     "deploy:atlantic": "bash scripts/deploy.sh atlantic",
     "verify:atlantic": "bash scripts/verify.sh atlantic",
     "demo": "bash scripts/demo.sh",
-    "format": "forge fmt && prettier --write 'src/**/*.{ts,json,md}'",
+    "format": "bash scripts/forge.sh fmt && prettier --write 'src/**/*.{ts,json,md}'",
     "clean": "rm -rf out cache broadcast dist"
   },
   "keywords": [

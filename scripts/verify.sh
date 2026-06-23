@@ -16,13 +16,13 @@ NETWORK="${1:-atlantic}"
 
 case "$NETWORK" in
   atlantic|atlantic-testnet)
-    API_URL="https://api.socialscan.io/pharos-atlantic-testnet"
+    API_URL="https://api.socialscan.io/pharos-testnet/v1/explorer/command_api/contract"
     CHAIN_NAME="atlantic"
     COMPILER="0.8.24"
     OPTIMIZER_RUNS=200
     ;;
   mainnet)
-    API_URL="https://api.socialscan.io/pharos-mainnet"
+    API_URL="https://api.socialscan.io/pharos-mainnet/v1/explorer/command_api/contract"
     CHAIN_NAME="mainnet"
     COMPILER="0.8.24"
     OPTIMIZER_RUNS=200
@@ -63,6 +63,12 @@ if [[ -z "$CREG" || "$CREG" == "null" || "$CREG" == "PENDING_DEPLOYMENT" ]]; the
   exit 1
 fi
 
+# Use Foundry's forge directly (avoids shadowing by other `forge` CLIs)
+FORGE="$HOME/.foundry/bin/forge"
+if [[ ! -x "$FORGE" ]]; then
+  FORGE="forge"
+fi
+
 verify_contract() {
   local name="$1"
   local address="$2"
@@ -73,10 +79,10 @@ verify_contract() {
 
   # Flatten the source for the API
   local flattened
-  flattened=$(forge flatten "$source_file" 2>/dev/null)
+  flattened=$("$FORGE" flatten "$source_file" 2>/dev/null)
 
   if [[ -z "$flattened" ]]; then
-    echo "  ERROR: forge flatten produced empty output" >&2
+    echo "  ERROR: $FORGE flatten produced empty output" >&2
     return 1
   fi
 
@@ -87,16 +93,34 @@ verify_contract() {
     --arg action "verifysourcecode" \
     --arg contractaddress "$address" \
     --arg sourceCode "$flattened" \
-    --arg codeformat "solidity-standard-json-input" \
-    --arg contractname "$contract_path" \
-    --arg compilerversion "v$COMPILER+commit.e98b9f7e" \
+    --arg codeformat "solidity-single-file" \
+    --arg contractname "$name" \
+    --arg compilerversion "v$COMPILER+commit.e11b9ed9" \
     --argjson optimizerRuns "$OPTIMIZER_RUNS" \
-    '{apikey: $apikey, module: $module, action: $action, contractaddress: $contractaddress, sourceCode: $sourceCode, codeformat: $codeformat, contractname: $contractname, compilerversion: $compilerversion, optimizationUsed: 1, runs: $optimizerRuns}')
+    '{apikey: $apikey, module: $module, action: $action, contractaddress: $contractaddress, sourceCode: $sourceCode, codeformat: $codeformat, contractname: $contractname, compilerversion: $compilerversion, optimizationUsed: 1, runs: $optimizerRuns, evmVersion: "cancun", licenseType: "4", constructorArguements: ""}')
 
   local response
-  response=$(curl -s -X POST "$API_URL/api" \
+  response=$(curl -s -X POST "$API_URL" \
     -H "Content-Type: application/json" \
-    -d "$args_json")
+    -d "$args_json" 2>&1)
+
+  # If JSON body fails, try form-encoded (some socialscan endpoints prefer it)
+  if echo "$response" | jq -e '.detail' >/dev/null 2>&1; then
+    response=$(curl -s -X POST "$API_URL" \
+      --data-urlencode "apikey=$SOCIALSCAN_API_KEY" \
+      --data-urlencode "module=contract" \
+      --data-urlencode "action=verifysourcecode" \
+      --data-urlencode "contractaddress=$address" \
+      --data-urlencode "sourceCode=$flattened" \
+      --data-urlencode "codeformat=solidity-single-file" \
+      --data-urlencode "contractname=$name" \
+      --data-urlencode "compilerversion=v${COMPILER}+commit.e11b9ed9" \
+      --data-urlencode "optimizationUsed=1" \
+      --data-urlencode "runs=$OPTIMIZER_RUNS" \
+      --data-urlencode "evmVersion=cancun" \
+      --data-urlencode "licenseType=4" \
+      --data-urlencode "constructorArguements=" 2>&1)
+  fi
 
   local guid
   guid=$(echo "$response" | jq -r '.result // empty')
@@ -113,7 +137,7 @@ verify_contract() {
   for i in 1 2 3 4 5 6 7 8 9 10; do
     sleep 5
     local status_resp
-    status_resp=$(curl -s "$API_URL/api?module=contract&action=checkverifystatus&guid=$guid&apikey=$SOCIALSCAN_API_KEY")
+    status_resp=$(curl -s "$API_URL?module=contract&action=checkverifystatus&guid=$guid&apikey=$SOCIALSCAN_API_KEY")
     local status
     status=$(echo "$status_resp" | jq -r '.result // empty')
     echo "  Status: $status"

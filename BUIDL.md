@@ -39,11 +39,7 @@ ask "who are you, and who vouches for that?"
   - Deploy tx: `0x559824557548e16366412ece341a507b2fad27064a9fe85567bd506bbc68c9b9`
   - Block: 24369311 (2026-06-17 05:52:33 UTC)
   - Pharos Scan: https://atlantic.pharosscan.xyz/address/0xf583421A8e11aEB42d26798F285dc590A992e488
-- **Source verification**: pending. The Pharos Atlantic explorer uses a socialscan API endpoint
-  that returned `{"detail": "Not Found"}` at submission time (2026-06-17). The contracts are
-  functionally verified via the 35 Foundry unit tests; the on-chain source-verification badge
-  can be added by re-running `bash scripts/verify.sh atlantic` once the socialscan service is
-  back online (same Etherscan-family flow, requires `SOCIALSCAN_API_KEY` in env).
+- **Source verification**: pending. The contracts were hardened (ERC-721 compliance, safeTransferFrom, bounded registry scans) *after* the initial Atlantic deployment, so the deployed bytecode no longer matches the current source. To get the verification badge, redeploy the current contracts with `bash scripts/deploy.sh atlantic` and then run `bash scripts/verify.sh atlantic`. The verify script has been updated to use the correct socialscan API endpoint (`pharos-testnet/v1/explorer/command_api/contract`), `solidity-single-file` format, `cancun` EVM version, and the correct solc commit hash (`e11b9ed9`).
 
 ## End-to-end demo txs (executed live on Atlantic)
 
@@ -174,6 +170,9 @@ After an internal audit, the following improvements were applied without changin
 - **Fuzz tests**: Added 3 Foundry fuzz tests covering valid signature issuance, wrong-nonce rejection, and revocation edge cases (256 runs each).
 - **Documentation fix**: `SKILL.md` and `README.md` now correctly state that credentials are wallet-bound and must be re-issued after key rotation.
 - **Capability hashes**: `assets/credentials.example.json` now contains actual `keccak256` hashes instead of placeholder values.
+- **Forge path resolution**: Added `scripts/forge.sh` wrapper that finds Foundry's forge at `~/.foundry/bin/forge` (avoids shadowing by other `forge` CLIs). All npm scripts and deploy/verify scripts use it.
+- **0G Compute SDK fix**: The SDK's ESM build has a broken re-export; `compute.ts` now imports via `createRequire` to use the working CJS build.
+- **Pharos Scan verify script**: Updated to the correct socialscan API endpoint, `solidity-single-file` format, `cancun` EVM version, and correct solc commit hash.
 
 ### Security posture
 
@@ -268,7 +267,7 @@ Solo submitter: `<your name>`
 - [x] 17/17 TypeScript unit tests passing (node:test, mocked clients)
 - [x] Solidity 0.8.24, no warnings, optimizer on
 - [x] Deployed to Pharos Atlantic testnet (chainId 688689) — see tx hashes above
-- [ ] Source verified on Pharos Scan (socialscan API returned 404 at submission; re-run `bash scripts/verify.sh atlantic` once it's back)
+- [ ] Source verified on Pharos Scan (source changed after deployment — redeploy + `bash scripts/verify.sh atlantic` to get the badge; verify script updated with correct API endpoint + compiler settings)
 - [x] CLI: 8 commands, JSON output — verified live on Atlantic
 - [x] MCP server: 7 tools (including `ligis-run-steward`)
 - [x] Trust Steward Agent: full loop (boot → reason → gate → act → record) with 0G Compute + 0G Storage
