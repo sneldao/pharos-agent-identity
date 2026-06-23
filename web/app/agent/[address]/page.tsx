@@ -1,0 +1,258 @@
+import type { Address } from "viem";
+import { getAddress } from "viem";
+import { notFound } from "next/navigation";
+import { AddressDisplay } from "@/components/AddressDisplay";
+import { AgentPortrait } from "@/components/AgentPortrait";
+import { Rule } from "@/components/Rule";
+import { ShareRow } from "@/components/ShareRow";
+import { Snippet } from "@/components/Snippet";
+import { capabilities, network, readAgentSnapshot } from "@/lib/chain";
+import { isAddressLike, monthYear, truncateAddress } from "@/lib/format";
+
+type Params = { address: string };
+
+export const dynamic = "force-dynamic";
+
+function normalize(raw: string): Address | null {
+  if (!isAddressLike(raw)) return null;
+  try {
+    return getAddress(raw);
+  } catch {
+    return null;
+  }
+}
+
+export async function generateMetadata({ params }: { params: Promise<Params> }) {
+  const { address } = await params;
+  const normal = normalize(address);
+  if (!normal) return { title: "Unknown address — Ligis" };
+  return {
+    title: `Agent ${truncateAddress(normal)} — Ligis`,
+    description: `Identity, credentials, and evidence for agent ${normal} on ${network.name}.`,
+  };
+}
+
+export default async function AgentPage({ params }: { params: Promise<Params> }) {
+  const { address: raw } = await params;
+  const address = normalize(raw);
+  if (!address) notFound();
+
+  const snap = await readAgentSnapshot(address);
+  const heldCount = snap.held.length;
+
+  return (
+    <main className="mx-auto max-w-5xl px-8 py-16 sm:py-24">
+      <header className="flex items-baseline justify-between text-xs text-ink-quiet">
+        <p className="eyebrow">
+          {snap.exists ? "Agent · in the index" : "Agent · not in the index"}
+        </p>
+        <span className="font-mono tabular">
+          {network.name.toLowerCase()} · chain {network.chainId}
+        </span>
+      </header>
+
+      <section className="mt-16 grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-[14rem_1fr]">
+        <div className="order-2 sm:order-1">
+          <div className="aspect-[4/5] w-full max-w-[14rem]">
+            <AgentPortrait address={address} className="h-full w-full" />
+          </div>
+          <p className="mt-3 font-mono text-[11px] tabular text-ink-quiet">
+            generated portrait · seeded by address
+          </p>
+        </div>
+
+        <div className="order-1 sm:order-2 sm:pt-2">
+          <h1 className="display text-5xl text-ink sm:text-[4.5rem]">
+            {truncateAddress(address, 6, 4)}
+          </h1>
+          <p className="mt-6 max-w-prose font-serif text-lg leading-relaxed text-ink-soft">
+            {snap.exists
+              ? `Held by a single controller on ${network.name}. Three reads from chain compose this page: ownership of the agent token, the controller, and the credential ledger.`
+              : "This address has not minted an agent. It has no portable identity, no credential ledger, no evidence trail. Empty rows below the rule are intentional — the catalog presents what exists, not what could."}
+          </p>
+          <div className="mt-10">
+            <AddressDisplay address={address} variant="block" />
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-24">
+        <div className="grid grid-cols-2 gap-y-6 gap-x-10 text-sm sm:grid-cols-4">
+          <Fact label="status">
+            {snap.exists ? "active" : "no agent"}
+          </Fact>
+          <Fact label="token">
+            {snap.exists ? `#${snap.tokenId.toString()}` : "—"}
+          </Fact>
+          <Fact label="controller">
+            {snap.controller ? (
+              <AddressDisplay address={snap.controller} copy={false} head={5} tail={3} />
+            ) : (
+              "—"
+            )}
+          </Fact>
+          <Fact label="credentials held">
+            <span className="font-mono tabular text-ink">{heldCount}</span>
+          </Fact>
+        </div>
+      </section>
+
+      <section className="mt-24">
+        <header className="flex items-baseline justify-between">
+          <p className="eyebrow">Credentials</p>
+          <p className="font-mono text-[11px] tabular text-ink-quiet">
+            scanned against {network.name.toLowerCase()} reference set
+          </p>
+        </header>
+        <div className="mt-6">
+          <div className="grid grid-cols-[1fr_auto_auto] items-baseline gap-x-8 py-3 text-[11px] uppercase tracking-[0.16em] text-ink-quiet">
+            <span>capability</span>
+            <span>issuer</span>
+            <span className="w-28 text-right">expires</span>
+          </div>
+          <Rule />
+          {snap.held.length === 0 ? (
+            <div className="py-12 text-center text-sm text-ink-quiet">
+              <p className="font-serif text-base italic">
+                No credentials held against the reference set.
+              </p>
+            </div>
+          ) : (
+            snap.held.map(({ capability, view }) => (
+              <div key={capability.id}>
+                <div className="grid grid-cols-[1fr_auto_auto] items-baseline gap-x-8 py-5 text-sm">
+                  <div className="space-y-1">
+                    <span className="font-mono tabular text-ink">{capability.id}</span>
+                    <p className="font-serif text-xs italic text-ink-quiet">
+                      {capability.label.toLowerCase()}
+                    </p>
+                  </div>
+                  <span className="font-mono tabular text-ink-soft">
+                    {truncateAddress(view.issuer, 5, 3)}
+                  </span>
+                  <span className="w-28 text-right font-mono tabular text-ink-soft">
+                    {view.expiresAt === 0n
+                      ? "no expiry"
+                      : view.expiresAt < BigInt(Math.floor(Date.now() / 1000))
+                        ? "expired"
+                        : monthYear(view.expiresAt)}
+                  </span>
+                </div>
+                <Rule tone="soft" />
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
+      {!snap.exists ? (
+        <section className="mt-24 max-w-2xl">
+          <p className="eyebrow">To mint into the index</p>
+          <Rule className="mt-3" />
+          <p className="mt-6 font-serif text-lg leading-relaxed text-ink">
+            Run the Trust Steward against this wallet and it will mint its own
+            agent token, then issue the credentials its reasoning calls for.
+          </p>
+          <pre className="mt-6 overflow-x-auto bg-paper-deep px-5 py-4 font-mono text-[13px] leading-relaxed tabular text-ink">
+            {`PRIVATE_KEY=0x... ligis agent run \\\n  --goal "operate on Pharos as a portable agent"`}
+          </pre>
+        </section>
+      ) : null}
+
+      <ShareSection address={address} heldCount={heldCount} firstCapability={
+        snap.held[0]?.capability.id ?? capabilities[0]?.id ?? "kyc.basic"
+      } />
+
+      <footer className="mt-24 flex items-baseline justify-between text-xs">
+        <a
+          href="/"
+          className="text-ink-soft underline decoration-rule decoration-1 underline-offset-4 transition-colors hover:text-ink hover:decoration-terra"
+        >
+          ← Return to the index
+        </a>
+        <a
+          href={`${network.explorerUrl}/address/${address}`}
+          target="_blank"
+          rel="noreferrer"
+          className="text-ink-soft underline decoration-rule decoration-1 underline-offset-4 transition-colors hover:text-ink hover:decoration-terra"
+        >
+          On PharosScan ↗
+        </a>
+      </footer>
+    </main>
+  );
+}
+
+function ShareSection({
+  address,
+  heldCount,
+  firstCapability,
+}: {
+  address: Address;
+  heldCount: number;
+  firstCapability: string;
+}) {
+  const url = `https://ligis.app/agent/${address}`;
+  const heldLine =
+    heldCount > 0
+      ? `${heldCount} verified ${heldCount === 1 ? "capability" : "capabilities"}`
+      : "verifiable identity";
+  const text = `${truncateAddress(address)} · ${heldLine} on Ligis.`;
+
+  const iframeCode = `<iframe
+  src="https://ligis.app/embed/verify?subject=${address}&capability=${firstCapability}"
+  width="520" height="120"
+  style="border: 0; background: transparent;"
+  loading="lazy"
+  title="Ligis verification badge">
+</iframe>`;
+
+  return (
+    <>
+      <section className="mt-24">
+        <header className="flex items-baseline justify-between">
+          <p className="eyebrow">Share this agent</p>
+          <p className="font-mono text-[11px] tabular text-ink-quiet">
+            opengraph card included
+          </p>
+        </header>
+        <Rule className="mt-4" />
+        <p className="mt-6 max-w-prose font-serif text-base leading-relaxed text-ink-soft">
+          Posting the link renders an opengraph card with the agent&rsquo;s
+          generated portrait and credential count.
+        </p>
+        <div className="mt-6">
+          <ShareRow url={url} text={text} />
+        </div>
+      </section>
+
+      <section className="mt-16">
+        <header className="flex items-baseline justify-between">
+          <p className="eyebrow">Embed verification</p>
+          <p className="font-mono text-[11px] tabular text-ink-quiet">
+            iframe · no JS
+          </p>
+        </header>
+        <Rule className="mt-4" />
+        <p className="mt-6 max-w-prose font-serif text-base leading-relaxed text-ink-soft">
+          Drop this snippet into any page to render a live{" "}
+          <span className="font-mono text-ink">isCapable</span> badge for{" "}
+          <span className="font-mono text-ink">{firstCapability}</span>.
+        </p>
+        <div className="mt-6">
+          <Snippet code={iframeCode} lang="html" />
+        </div>
+      </section>
+    </>
+  );
+}
+
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <p className="eyebrow">{label}</p>
+      <Rule tone="soft" />
+      <div className="pt-1 text-sm text-ink">{children}</div>
+    </div>
+  );
+}

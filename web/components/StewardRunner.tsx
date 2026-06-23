@@ -1,0 +1,338 @@
+"use client";
+
+import { useCallback, useMemo, useRef, useState } from "react";
+import { PHASES, type Phase, type StewardEvent } from "@/lib/steward-events";
+import { Rule } from "./Rule";
+import { truncateAddress, truncateHash } from "@/lib/format";
+
+type PhaseStatus = "idle" | "running" | "done" | "skip" | "error";
+
+type State = {
+  phaseStatus: Record<Phase, PhaseStatus>;
+  reasonText: string;
+  capabilities: Array<{ name: string; capable: boolean }>;
+  txs: Array<{ name: string; txHash: string }>;
+  manifest: { rootHash: string; anchorTx: string } | null;
+  summary: { ok: boolean; tokenId?: string } | null;
+  error: string | null;
+  events: StewardEvent[];
+};
+
+const EMPTY: State = {
+  phaseStatus: { BOOT: "idle", REASON: "idle", GATE: "idle", ACT: "idle", RECORD: "idle" },
+  reasonText: "",
+  capabilities: [],
+  txs: [],
+  manifest: null,
+  summary: null,
+  error: null,
+  events: [],
+};
+
+function apply(state: State, ev: StewardEvent): State {
+  const next: State = {
+    ...state,
+    events: [...state.events, ev],
+  };
+  switch (ev.type) {
+    case "phase":
+      next.phaseStatus = { ...state.phaseStatus, [ev.phase]: ev.status === "start" ? "running" : ev.status };
+      break;
+    case "delta":
+      next.reasonText = state.reasonText + ev.text;
+      break;
+    case "capability":
+      next.capabilities = [...state.capabilities, { name: ev.name, capable: ev.capable }];
+      break;
+    case "tx":
+      next.txs = [...state.txs, { name: ev.name, txHash: ev.txHash }];
+      break;
+    case "manifest":
+      next.manifest = { rootHash: ev.rootHash, anchorTx: ev.anchorTx };
+      break;
+    case "summary":
+      next.summary = { ok: ev.ok, tokenId: ev.tokenId };
+      break;
+    case "error":
+      next.error = ev.message;
+      break;
+  }
+  return next;
+}
+
+export function StewardRunner({ defaultGoal }: { defaultGoal: string }) {
+  const [goal, setGoal] = useState(defaultGoal);
+  const [dryRun, setDryRun] = useState(true);
+  const [state, setState] = useState<State>(EMPTY);
+  const [running, setRunning] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const run = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setState(EMPTY);
+    setRunning(true);
+
+    try {
+      const res = await fetch("/api/steward", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goal, dryRun }),
+        signal: controller.signal,
+      });
+      if (!res.body) throw new Error("No response body");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let acc = EMPTY;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let idx: number;
+        while ((idx = buffer.indexOf("\n\n")) !== -1) {
+          const chunk = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          const line = chunk.split("\n").find((l) => l.startsWith("data:"));
+          if (!line) continue;
+          try {
+            const ev = JSON.parse(line.slice(5).trim()) as StewardEvent;
+            acc = apply(acc, ev);
+            setState(acc);
+          } catch {}
+        }
+      }
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        setState((s) => ({ ...s, error: (err as Error).message }));
+      }
+    } finally {
+      setRunning(false);
+    }
+  }, [goal, dryRun]);
+
+  const stop = useCallback(() => {
+    abortRef.current?.abort();
+    setRunning(false);
+  }, []);
+
+  const eventCount = state.events.length;
+  const jsonPanel = useMemo(() => JSON.stringify(state.events, null, 2), [state.events]);
+
+  return (
+    <div className="space-y-16">
+      <section className="space-y-6">
+        <div className="space-y-2">
+          <label htmlFor="goal" className="eyebrow block">
+            goal · imperative
+          </label>
+          <textarea
+            id="goal"
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+            rows={3}
+            className="block w-full resize-none border-0 border-b border-rule bg-transparent pb-3 font-serif text-lg leading-relaxed text-ink outline-none transition-colors focus:border-terra"
+          />
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-6">
+          <label className="inline-flex items-center gap-3 text-sm text-ink-soft">
+            <input
+              type="checkbox"
+              checked={dryRun}
+              onChange={(e) => setDryRun(e.target.checked)}
+              className="h-3 w-3 appearance-none border border-ink-soft bg-paper checked:bg-terra checked:border-terra"
+            />
+            <span>
+              <span className="text-ink">dry run</span>
+              <span className="ml-2 text-ink-quiet">— no on-chain writes</span>
+            </span>
+          </label>
+          <div className="flex items-baseline gap-6">
+            {running ? (
+              <button
+                type="button"
+                onClick={stop}
+                className="text-sm text-ink-soft underline decoration-rule decoration-1 underline-offset-4 transition-colors hover:text-revoke hover:decoration-revoke"
+              >
+                stop
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={run}
+              disabled={running}
+              className="text-sm text-ink underline decoration-rule decoration-1 underline-offset-4 transition-colors hover:decoration-terra disabled:text-ink-quiet disabled:no-underline"
+            >
+              {running ? "running…" : "run the loop →"}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-12">
+        {PHASES.map((p, i) => {
+          const status = state.phaseStatus[p.key];
+          return (
+            <PhaseRow key={p.key} index={i + 1} phase={p} status={status}>
+              {p.key === "BOOT" && status !== "idle" ? (
+                <p className="font-serif text-base italic text-ink-soft">
+                  {state.summary?.tokenId
+                    ? `Ensured agent token #${state.summary.tokenId}.`
+                    : status === "running"
+                      ? "Reading walletOfAgent…"
+                      : "Token ensured."}
+                </p>
+              ) : null}
+
+              {p.key === "REASON" && state.reasonText ? (
+                <p className="max-w-prose font-serif text-base leading-relaxed text-ink">
+                  {state.reasonText}
+                  {status === "running" ? (
+                    <span className="ml-1 inline-block h-3 w-[2px] translate-y-[2px] animate-pulse bg-ink" />
+                  ) : null}
+                </p>
+              ) : null}
+
+              {p.key === "GATE" && state.capabilities.length > 0 ? (
+                <div className="space-y-0">
+                  {state.capabilities.map((c) => (
+                    <div key={c.name}>
+                      <div className="grid grid-cols-[1fr_auto] items-baseline gap-x-8 py-3 text-sm">
+                        <span className="font-mono tabular text-ink">{c.name}</span>
+                        <span
+                          className={`font-mono text-[11px] uppercase tracking-[0.16em] ${c.capable ? "text-sage" : "text-ink-quiet"}`}
+                        >
+                          {c.capable ? "held" : "not held"}
+                        </span>
+                      </div>
+                      <Rule tone="soft" />
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {p.key === "ACT" ? (
+                status === "skip" ? (
+                  <p className="font-serif text-base italic text-ink-quiet">
+                    Dry run — no credentials issued.
+                  </p>
+                ) : state.txs.length > 0 ? (
+                  <div className="space-y-0">
+                    {state.txs.map((t) => (
+                      <div key={t.txHash}>
+                        <div className="grid grid-cols-[1fr_auto] items-baseline gap-x-8 py-3 text-sm">
+                          <span className="font-mono tabular text-ink">
+                            issued {t.name}
+                          </span>
+                          <span className="font-mono tabular text-ink-soft">
+                            {truncateHash(t.txHash, 10, 6)}
+                          </span>
+                        </div>
+                        <Rule tone="soft" />
+                      </div>
+                    ))}
+                  </div>
+                ) : null
+              ) : null}
+
+              {p.key === "RECORD" ? (
+                status === "skip" ? (
+                  <p className="font-serif text-base italic text-ink-quiet">
+                    Dry run — manifest not anchored.
+                  </p>
+                ) : state.manifest ? (
+                  <div className="space-y-3 text-sm">
+                    <div className="grid grid-cols-[8rem_1fr] items-baseline gap-x-6">
+                      <span className="text-ink-quiet">manifest root</span>
+                      <span className="font-mono tabular text-ink">
+                        {truncateHash(state.manifest.rootHash, 10, 6)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-[8rem_1fr] items-baseline gap-x-6">
+                      <span className="text-ink-quiet">anchor tx</span>
+                      <span className="font-mono tabular text-ink">
+                        {truncateAddress(state.manifest.anchorTx, 10, 6)}
+                      </span>
+                    </div>
+                  </div>
+                ) : null
+              ) : null}
+            </PhaseRow>
+          );
+        })}
+      </section>
+
+      {state.error ? (
+        <section className="space-y-3">
+          <p className="eyebrow">error</p>
+          <Rule />
+          <p className="font-serif text-base italic text-revoke">{state.error}</p>
+        </section>
+      ) : null}
+
+      <section className="space-y-4">
+        <header className="flex items-baseline justify-between">
+          <p className="eyebrow">stream · raw events</p>
+          <span className="font-mono text-[11px] tabular text-ink-quiet">
+            {eventCount} events
+          </span>
+        </header>
+        <Rule />
+        <pre className="max-h-72 overflow-auto bg-paper-deep px-5 py-4 font-mono text-[11px] leading-relaxed tabular text-ink">
+          {eventCount === 0 ? "// Run the loop to populate the stream." : jsonPanel}
+        </pre>
+      </section>
+    </div>
+  );
+}
+
+function PhaseRow({
+  index,
+  phase,
+  status,
+  children,
+}: {
+  index: number;
+  phase: (typeof PHASES)[number];
+  status: PhaseStatus;
+  children: React.ReactNode;
+}) {
+  const dotColor =
+    status === "running"
+      ? "bg-terra animate-pulse"
+      : status === "done"
+        ? "bg-sage"
+        : status === "skip"
+          ? "bg-ink-quiet"
+          : status === "error"
+            ? "bg-revoke"
+            : "bg-rule";
+  const indexColor = status === "idle" ? "text-ink-quiet" : "text-ink";
+
+  return (
+    <div className="grid grid-cols-[3rem_1fr] items-start gap-x-6">
+      <div className="flex flex-col items-center gap-3 pt-[6px]">
+        <span
+          className={`block h-1.5 w-1.5 rounded-full ${dotColor}`}
+          aria-hidden
+        />
+      </div>
+      <div className="space-y-3">
+        <header className="flex items-baseline justify-between">
+          <p className={`text-[11px] uppercase tracking-[0.16em] ${indexColor}`}>
+            {String(index).padStart(2, "0")} · {phase.label}
+          </p>
+          <span className="font-mono text-[11px] tabular text-ink-quiet">
+            {status === "idle" ? "—" : status}
+          </span>
+        </header>
+        <Rule />
+        <p className="font-serif text-sm italic text-ink-quiet">{phase.gloss}.</p>
+        {children}
+      </div>
+    </div>
+  );
+}

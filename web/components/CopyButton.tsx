@@ -1,0 +1,37 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+export function CopyButton({
+  value,
+  label = "copy",
+  className = "",
+}: {
+  value: string;
+  label?: string;
+  className?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return;
+    const id = setTimeout(() => setCopied(false), 1200);
+    return () => clearTimeout(id);
+  }, [copied]);
+
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(value);
+          setCopied(true);
+        } catch {}
+      }}
+      className={`inline-flex items-baseline text-[11px] tracking-[0.16em] uppercase text-ink-quiet transition-colors hover:text-ink ${className}`}
+      aria-label={`copy ${value}`}
+    >
+      {copied ? "copied" : label}
+    </button>
+  );
+}

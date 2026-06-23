@@ -41,3 +41,7 @@ debug.log
 # npm
 .npm
 .npmrc
+
+# claude code / commandcode session-local config
+.claude/
+.commandcode/
