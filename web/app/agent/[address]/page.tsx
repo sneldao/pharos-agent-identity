@@ -146,7 +146,25 @@ export default async function AgentPage({ params }: { params: Promise<Params> })
             Run the Trust Steward against this wallet and it will mint its own
             agent token, then issue the credentials its reasoning calls for.
           </p>
-          <pre className="mt-6 overflow-x-auto bg-paper-deep px-5 py-4 font-mono text-[13px] leading-relaxed tabular text-ink">
+          <div className="mt-6 flex flex-wrap items-baseline gap-x-8 gap-y-3 text-sm">
+            <a
+              href="/steward"
+              className="text-terra underline decoration-terra/40 decoration-1 underline-offset-4 transition-colors hover:decoration-terra"
+            >
+              Watch the simulation →
+            </a>
+            <a
+              href="https://github.com/sneldao/ligis#trust-steward-agent"
+              target="_blank"
+              rel="noreferrer"
+              className="text-ink-soft underline decoration-rule decoration-1 underline-offset-4 transition-colors hover:text-ink hover:decoration-terra"
+            >
+              Read the setup ↗
+            </a>
+          </div>
+          <p className="mt-10 eyebrow">Or run it yourself locally</p>
+          <Rule tone="soft" className="mt-2" />
+          <pre className="mt-4 overflow-x-auto bg-paper-deep px-5 py-4 font-mono text-[13px] leading-relaxed tabular text-ink">
             {`PRIVATE_KEY=0x... ligis agent run \\\n  --goal "operate on Pharos as a portable agent"`}
           </pre>
         </section>

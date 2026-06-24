@@ -3,6 +3,7 @@ import { CatalogHero } from "@/components/catalog/CatalogHero";
 import { Diagram } from "@/components/Diagram";
 import { Rule } from "@/components/Rule";
 import { Snippet } from "@/components/Snippet";
+import { StewardTeaser } from "@/components/StewardTeaser";
 import { VerifyDemo } from "@/components/VerifyDemo";
 import {
   addresses,
@@ -45,6 +46,8 @@ export default async function HomePage() {
   return (
     <>
       <CatalogHero />
+
+      <StewardTeaser />
 
       <main id="how" className="mx-auto max-w-5xl scroll-mt-24 px-8 pt-32 pb-24 sm:pt-44 sm:pb-32">
         <header className="flex items-baseline justify-between text-xs">
