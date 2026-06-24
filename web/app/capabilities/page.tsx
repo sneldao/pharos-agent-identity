@@ -57,7 +57,7 @@ export default function CapabilitiesPage() {
           Capabilities are strings the registry treats as opaque bytes32 hashes.
           The names below are the reference set used across the docs, the CLI,
           and the Steward&rsquo;s reasoning. An issuer can sign any capability
-          — these are simply the ones we have agreed to read about together.
+          — these are simply the ones this project ships with as defaults.
         </p>
         <p className="mt-6 max-w-prose font-serif text-base italic leading-relaxed text-ink-quiet">
           {capabilities.length} capabilities in the reference set. Hashes are

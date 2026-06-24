@@ -65,6 +65,7 @@ export function StewardRunner({ defaultGoal }: { defaultGoal: string }) {
   const [dryRun, setDryRun] = useState(true);
   const [state, setState] = useState<State>(EMPTY);
   const [running, setRunning] = useState(false);
+  const [showReal, setShowReal] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const run = useCallback(async () => {
@@ -273,6 +274,52 @@ export function StewardRunner({ defaultGoal }: { defaultGoal: string }) {
         </section>
       ) : null}
 
+      {/* Real CLI commands toggle */}
+      <section className="space-y-4">
+        <button
+          type="button"
+          onClick={() => setShowReal((v) => !v)}
+          className="eyebrow flex items-baseline gap-3 text-ink-soft transition-colors hover:text-ink"
+        >
+          <span>{showReal ? "▾" : "▸"}</span>
+          <span>Real CLI commands</span>
+        </button>
+        {showReal ? (
+          <div className="space-y-5">
+            <PhaseCommand
+              index={1}
+              label="boot"
+              command={`PRIVATE_KEY=0x... ligis issue --token-uri "ipfs://my-agent"`}
+              note="Mints a PharosAgentID to the signer's wallet. Returns tokenId."
+            />
+            <PhaseCommand
+              index={2}
+              label="reason"
+              command={`ligis agent run --goal "Operate as a Pharos agent…" --dry-run`}
+              note="Sends the goal to 0G Compute (TEE-verified LLM). Returns the required capability list."
+            />
+            <PhaseCommand
+              index={3}
+              label="gate"
+              command={`ligis verify --subject 0x... --capability "agent.commerce.escrow"`}
+              note="Reads isCapable from CredentialRegistry. Returns capable: true/false."
+            />
+            <PhaseCommand
+              index={4}
+              label="act"
+              command={`ligis sign --issuer-key 0x... --subject 0x... --capability "agent.commerce.escrow" --expires-in 15552000`}
+              note="Signs an EIP-712 credential off-chain, then submits it on-chain via cast send."
+            />
+            <PhaseCommand
+              index={5}
+              label="record"
+              command={`ligis agent run --goal "Operate as a Pharos agent…"`}
+              note="Full loop: boot → reason → gate → act → record. Requires PRIVATE_KEY + ZEROG_PRIVATE_KEY."
+            />
+          </div>
+        ) : null}
+      </section>
+
       <section className="space-y-4">
         <header className="flex items-baseline justify-between">
           <p className="eyebrow">stream · raw events</p>
@@ -285,6 +332,37 @@ export function StewardRunner({ defaultGoal }: { defaultGoal: string }) {
           {eventCount === 0 ? "// Run the loop to populate the stream." : jsonPanel}
         </pre>
       </section>
+    </div>
+  );
+}
+
+function PhaseCommand({
+  index,
+  label,
+  command,
+  note,
+}: {
+  index: number;
+  label: string;
+  command: string;
+  note: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-baseline gap-3">
+        <span className="font-mono text-[11px] tabular text-ink-quiet">
+          {String(index).padStart(2, "0")}
+        </span>
+        <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-soft">
+          {label}
+        </span>
+      </div>
+      <pre className="overflow-x-auto bg-paper-deep px-4 py-3 font-mono text-[12px] leading-relaxed tabular text-ink">
+        {command}
+      </pre>
+      <p className="font-serif text-xs italic leading-relaxed text-ink-quiet">
+        {note}
+      </p>
     </div>
   );
 }

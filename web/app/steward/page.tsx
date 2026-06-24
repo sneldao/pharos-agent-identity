@@ -46,13 +46,21 @@ export default function StewardPage() {
           what is missing, and anchors a manifest of the evidence into 0G
           Storage.
         </p>
-        <p className="mt-6 max-w-prose font-serif text-base italic leading-relaxed text-ink-quiet">
-          This page runs a simulation of the loop against{" "}
-          {network.name.toLowerCase()}. The events are mocked at believable
-          timing so the shape of the loop is legible without provisioning a 0G
-          wallet. Run it yourself locally — see below — to drive the real
-          steward end to end.
-        </p>
+        <div
+          className="mt-8 flex items-start gap-4 bg-paper-deep px-5 py-4"
+          style={{ borderLeft: "3px solid #B85D3E" }}
+        >
+          <span className="mt-0.5 shrink-0 font-mono text-[11px] uppercase tracking-[0.16em] text-terra">
+            ⚠ simulation
+          </span>
+          <p className="font-serif text-sm leading-relaxed text-ink-soft">
+            This page runs a <strong>simulated</strong> loop against{" "}
+            {network.name.toLowerCase()}. No on-chain writes occur. Events are
+            generated client-side at believable timing so the shape of the
+            loop is legible without provisioning a 0G wallet. Scroll down for
+            the real CLI commands to run it yourself.
+          </p>
+        </div>
       </section>
 
       <section className="mt-24">

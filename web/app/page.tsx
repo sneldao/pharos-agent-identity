@@ -120,7 +120,7 @@ export default async function HomePage() {
           </p>
         </section>
 
-        <section className="mt-32 sm:mt-44">
+        <section id="verify" className="mt-32 scroll-mt-24 sm:mt-44">
           <header className="flex items-baseline justify-between">
             <p className="eyebrow">01 · Verify</p>
             <p className="font-mono text-[11px] tabular text-ink-quiet">
@@ -146,7 +146,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="mt-32 sm:mt-44">
+        <section id="compose" className="mt-32 scroll-mt-24 sm:mt-44">
           <header className="flex items-baseline justify-between">
             <p className="eyebrow">02 · Compose</p>
             <p className="font-mono text-[11px] tabular text-ink-quiet">
@@ -170,7 +170,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="mt-32 sm:mt-44">
+        <section id="system" className="mt-32 scroll-mt-24 sm:mt-44">
           <header className="flex items-baseline justify-between">
             <p className="eyebrow">03 · The system</p>
             <p className="font-mono text-[11px] tabular text-ink-quiet">
@@ -206,6 +206,84 @@ export default async function HomePage() {
                 {addresses.credentialRegistry}
               </p>
             </a>
+          </div>
+        </section>
+
+        <section id="issue" className="mt-32 scroll-mt-24 sm:mt-44">
+          <header className="flex items-baseline justify-between">
+            <p className="eyebrow">04 · Issue a credential</p>
+            <p className="font-mono text-[11px] tabular text-ink-quiet">
+              cli · private key required
+            </p>
+          </header>
+          <Rule className="mt-4" />
+          <div className="mt-10 grid grid-cols-1 gap-x-16 gap-y-12 lg:grid-cols-[18rem_1fr]">
+            <div>
+              <h2 className="display text-3xl text-ink">
+                Mint an identity. Sign a credential. From your terminal.
+              </h2>
+              <p className="mt-6 font-serif text-base leading-relaxed text-ink-soft">
+                Issuing requires a private key because only the controller or
+                an authorized issuer can write to the registry. The web app is
+                read-only by design — no admin keys, no backend proxy. If you
+                have a Pharos testnet wallet, the CLI handles everything:
+              </p>
+              <ul className="mt-4 space-y-2 font-serif text-sm leading-relaxed text-ink-soft">
+                <li className="flex items-baseline gap-3">
+                  <span className="inline-block h-1 w-1 rounded-full bg-terra" />
+                  Mint a soulbound PharosAgentID to your wallet
+                </li>
+                <li className="flex items-baseline gap-3">
+                  <span className="inline-block h-1 w-1 rounded-full bg-terra" />
+                  Sign an EIP-712 credential for any capability name
+                </li>
+                <li className="flex items-baseline gap-3">
+                  <span className="inline-block h-1 w-1 rounded-full bg-terra" />
+                  Submit the attestation to CredentialRegistry
+                </li>
+                <li className="flex items-baseline gap-3">
+                  <span className="inline-block h-1 w-1 rounded-full bg-terra" />
+                  Verify it seconds later — right here in the demo above
+                </li>
+              </ul>
+            </div>
+            <div className="space-y-8">
+              <div className="space-y-3">
+                <p className="eyebrow">1 · Install</p>
+                <pre className="overflow-x-auto bg-paper-deep px-5 py-4 font-mono text-[13px] leading-relaxed tabular text-ink">
+                  bash &lt;(curl -sL https://raw.githubusercontent.com/sneldao/ligis/main/install.sh)
+                </pre>
+              </div>
+              <div className="space-y-3">
+                <p className="eyebrow">2 · Mint &amp; issue</p>
+                <pre className="overflow-x-auto bg-paper-deep px-5 py-4 font-mono text-[13px] leading-relaxed tabular text-ink">
+                  {`PRIVATE_KEY=0x... ligis issue --token-uri "ipfs://my-agent"
+PRIVATE_KEY=0x... ligis sign \\
+  --issuer-key 0x... \\
+  --subject 0x... \\
+  --capability "agent.commerce.escrow"`}
+                </pre>
+              </div>
+              <p className="font-serif text-xs italic leading-relaxed text-ink-quiet">
+                See the{" "}
+                <a
+                  href="https://github.com/sneldao/ligis?tab=readme-ov-file#quickstart"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-ink-soft underline decoration-rule decoration-1 underline-offset-4 hover:text-ink hover:decoration-terra"
+                >
+                  README
+                </a>{" "}
+                or{" "}
+                <Link
+                  href="/steward"
+                  className="text-ink-soft underline decoration-rule decoration-1 underline-offset-4 hover:text-ink hover:decoration-terra"
+                >
+                  the Steward page
+                </Link>{" "}
+                for the full walkthrough.
+              </p>
+            </div>
           </div>
         </section>
 

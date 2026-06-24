@@ -61,8 +61,8 @@ export default async function AgentPage({ params }: { params: Promise<Params> })
           </h1>
           <p className="mt-8 max-w-prose font-serif text-lg leading-relaxed text-ink-soft">
             {snap.exists
-              ? `Held by a single controller on ${network.name}. Three reads from chain compose this dossier: ownership of the agent token, the controller, and the credential ledger.`
-              : "This address has not minted an agent. It has no portable identity, no credential ledger, no evidence trail. Empty rows below the rule are intentional — the catalog presents what exists, not what could."}
+              ? `Held by a single controller on ${network.name}. Three reads from chain compose this page: ownership of the agent token, the controller, and the credential ledger.`
+              : "This address has not minted an agent. It has no portable identity, no credentials, no evidence trail. To bootstrap one, use the Steward loop or the CLI."}
           </p>
           <div className="mt-10">
             <AddressDisplay address={address} variant="block" />
