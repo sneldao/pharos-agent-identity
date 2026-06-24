@@ -31,15 +31,14 @@ ask "who are you, and who vouches for that?"
 
 ## Deployed contracts (Pharos Atlantic testnet — live)
 
-- **PharosAgentID** (ERC-721 soulbound-style): `0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8`
-  - Deploy tx: `0x9d9577900e7328f6eb71f2c9d6bc92e18ffbdf23d34d6a9a3efdc659e56b6105`
-  - Block: 24369310 (2026-06-17 05:52:31 UTC)
-  - Pharos Scan: https://atlantic.pharosscan.xyz/address/0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8
-- **CredentialRegistry** (EIP-712 attestations): `0xf583421A8e11aEB42d26798F285dc590A992e488`
-  - Deploy tx: `0x559824557548e16366412ece341a507b2fad27064a9fe85567bd506bbc68c9b9`
-  - Block: 24369311 (2026-06-17 05:52:33 UTC)
-  - Pharos Scan: https://atlantic.pharosscan.xyz/address/0xf583421A8e11aEB42d26798F285dc590A992e488
+- **PharosAgentID** (ERC-721 soulbound-style): `0xb74508134CC0A0EE868E4FAc76EFD1db66c393e0`
+  - Deployed at block: 24369310+ (latest redeploy)
+  - Pharos Scan: https://atlantic.pharosscan.xyz/address/0xb74508134CC0A0EE868E4FAc76EFD1db66c393e0
+- **CredentialRegistry** (EIP-712 attestations): `0xcA10b459c15E0F24866053F737B8CBBE9a81048d`
+  - Deployed at block: 24369311+ (latest redeploy)
+  - Pharos Scan: https://atlantic.pharosscan.xyz/address/0xcA10b459c15E0F24866053F737B8CBBE9a81048d
 - **Source verification**: pending. The contracts were hardened (ERC-721 compliance, safeTransferFrom, bounded registry scans) *after* the initial Atlantic deployment, so the deployed bytecode no longer matches the current source. To get the verification badge, redeploy the current contracts with `bash scripts/deploy.sh atlantic` and then run `bash scripts/verify.sh atlantic`. The verify script has been updated to use the correct socialscan API endpoint (`pharos-testnet/v1/explorer/command_api/contract`), `solidity-single-file` format, `cancun` EVM version, and the correct solc commit hash (`e11b9ed9`).
+- **0G wallet**: funded (5.48 OG consolidated from 8 faucet claims, 2.48 OG after ledger deposit + provider setup). One-time `setupProvider()` run successfully — Trust Steward Agent ready for Compute + Storage.
 
 ## End-to-end demo txs (executed live on Atlantic)
 
@@ -280,5 +279,6 @@ Solo submitter: `<your name>`
 - [x] Pre-commit secret-scan hook (gitleaks 8.30.1 + pure-bash fallback)
 - [x] 100% of secrets in `.env.d/`, gitignored
 - [x] Git initialized, initial commit created
+- [x] 0G wallet funded (5.48 OG) + one-time setupProvider() completed — Trust Steward Agent operational
 - [ ] Loom demo (record from the tx hashes above)
 - [ ] GitHub repo is public

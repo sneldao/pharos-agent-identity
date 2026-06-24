@@ -62,6 +62,12 @@ ZEROG_PRIVATE_KEY=0x...
 
 The Trust Steward Agent needs a funded 0G testnet wallet for Compute (TEE-verified inference) and Storage (evidence upload).
 
+### Current status (as of June 2026)
+
+✅ **Funded and initialized.** The main 0G wallet (`0xa234d5ba3864acD254467193272e15941102A8fa`) holds 2.48 OG after the 3 OG ledger deposit + 0.1 OG provider funding. The one-time `setupProvider()` has been run.
+
+To re-run from scratch on a fresh wallet:
+
 1. **Generate a wallet** and store the key in `.env.d/zerog.env`.
 2. **Fund it** with at least **3.2 OG** on the 0G testnet (Galileo):
    - 3 OG for the ledger deposit (hard minimum enforced by the SDK)
