@@ -113,7 +113,7 @@ DEPLOYMENT_OUT="$ROOT_DIR/.deployment-latest.json" \
   --rpc-url "$RPC" \
   --private-key "$PRIVATE_KEY" \
   --broadcast \
-  "${GAS_PRICE_FLAG[@]}"
+  "${GAS_PRICE_FLAG[@]+${GAS_PRICE_FLAG[@]}}"
 
 if [[ ! -f "$ROOT_DIR/.deployment-latest.json" ]]; then
   echo "ERROR: $FORGE did not write a deployment record. Did the broadcast succeed?" >&2

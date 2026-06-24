@@ -258,7 +258,9 @@ export default async function HomePage() {
                 <p className="eyebrow">2 · Mint &amp; issue</p>
                 <pre className="overflow-x-auto bg-paper-deep px-5 py-4 font-mono text-[13px] leading-relaxed tabular text-ink">
                   {`PRIVATE_KEY=0x... ligis issue --token-uri "ipfs://my-agent"
-PRIVATE_KEY=0x... ligis sign \\
+
+# sign is off-chain — only the issuer key, no PRIVATE_KEY needed
+ligis sign \\
   --issuer-key 0x... \\
   --subject 0x... \\
   --capability "agent.commerce.escrow"`}

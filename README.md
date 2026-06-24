@@ -1,6 +1,7 @@
 # Ligis
 
-> **Portable on-chain identity and verifiable credentials for agents on the Pharos Network.**
+> **Portable on-chain identity and verifiable credentials for AI agents.**
+> **Live on Pharos. Portable to any EVM chain.**
 
 41 Foundry tests + 17 TypeScript tests passing. 4 on-chain Skills + 2 helpers + Trust Steward Agent. CLI. MCP server. MIT.
 
@@ -9,6 +10,8 @@
 ## What this is
 
 Ligis gives every AI agent a portable, revocable on-chain identity (`PharosAgentID` ERC-721) and signed capability credentials (`CredentialRegistry` EIP-712). Any contract can gate access in one line: `require(creds.isCapable(subject, keccak256("agent.commerce.escrow")), "not allowed")`.
+
+It ships **live on Pharos** — the identity layer the Pharos agent economy composes on today (Aegis, Pact, FaroLink, Maestro, x402). The contracts are plain EVM Solidity with no chain-specific dependencies, so the same two contracts deploy on any EVM chain, and credentials are chain-scoped and replay-safe by design.
 
 ## Skills
 
@@ -24,12 +27,23 @@ Ligis gives every AI agent a portable, revocable on-chain identity (`PharosAgent
 
 ## Deployed contracts
 
-Live on **Pharos Atlantic testnet** (chainId 688689):
+First deployment is live on **Pharos Atlantic testnet** (chainId 688689):
 
 | Contract | Address |
 |----------|---------|
 | `PharosAgentID` | `0xBAab32536368bBD97BD9410CCE6b7d075CdcAcF8` |
 | `CredentialRegistry` | `0xf583421A8e11aEB42d26798F285dc590A992e488` |
+
+## Chain support
+
+Ligis is **Pharos-first, EVM-portable by design.**
+
+- **No chain-specific dependencies.** Both contracts are plain Solidity (`^0.8.24`) — no custom precompiles or opcodes. The same source deploys unchanged on any EVM chain.
+- **Per-chain, replay-safe credentials.** The EIP-712 `DOMAIN_SEPARATOR` binds `block.chainid` and the registry address, so a credential signed for one chain cannot be replayed on another. Multi-chain is a property of the design, not a later bolt-on.
+- **Data-driven runtime.** Chains live in [`assets/networks.json`](assets/networks.json) and are selected with `PHAROS_NETWORK`; the CLI, MCP server, and agent build the chain at runtime (viem `defineChain`) — no code change to read a new network.
+- **Already multi-network.** The Trust Steward uses Pharos for identity/credentials and **0G** for verifiable compute and storage.
+
+To bring up another EVM chain: add it to [`assets/networks.json`](assets/networks.json) and to the network map in [`scripts/deploy.sh`](scripts/deploy.sh) (which currently has entries for `atlantic`, `mainnet`, and `local`), then run `bash scripts/deploy.sh <network>`. Each deployment is independent and gets its own EIP-712 domain.
 
 ## Quick start
 
