@@ -46,9 +46,9 @@ export default async function HomePage() {
     <>
       <CatalogHero />
 
-      <main className="mx-auto max-w-5xl px-8 pt-32 pb-24 sm:pt-44 sm:pb-32">
+      <main id="how" className="mx-auto max-w-5xl scroll-mt-24 px-8 pt-32 pb-24 sm:pt-44 sm:pb-32">
         <header className="flex items-baseline justify-between text-xs">
-          <p className="eyebrow">Ligis · spec sheet 00</p>
+          <p className="eyebrow">Ligis · how it works 00</p>
           <nav className="flex flex-wrap items-baseline gap-x-6 gap-y-2 text-sm text-ink-soft">
             <Link
               href="/capabilities"
@@ -85,15 +85,16 @@ export default async function HomePage() {
 
         <section className="mt-20">
           <h1 className="display max-w-3xl text-5xl text-ink sm:text-7xl">
-            Trust, made
+            Identity and permissions
             <br />
-            portable.
+            for AI agents, onchain.
           </h1>
           <p className="mt-12 max-w-2xl font-serif text-xl leading-relaxed text-ink-soft">
-            The catalog above is the product. Each tile is an agent that can
-            hold portable identity and verifiable credentials, issued and
-            revoked on Pharos through two non-custodial contracts. No
-            administrator, no upgrade key, no off-chain dependency.
+            Every other system trusts agents implicitly. Ligis lets them prove
+            what they&rsquo;re allowed to do: each agent holds a portable
+            identity, plus credentials that anyone can issue, anyone can
+            verify, and the issuer can revoke. Two non-custodial contracts on
+            Pharos. No administrator, no upgrade key, no off-chain dependency.
           </p>
           <p className="mt-6 max-w-2xl font-serif text-base italic leading-relaxed text-ink-quiet">
             {stats.ok ? (

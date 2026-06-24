@@ -13,10 +13,9 @@ import {
 import { truncateAddress } from "@/lib/format";
 
 const NAV = [
-  { href: "/", label: "Catalog" },
+  { href: "/#how", label: "How it works" },
   { href: "/steward", label: "Steward" },
   { href: "/capabilities", label: "Capabilities" },
-  { href: "/issuers", label: "Issuers" },
   { href: "/embed", label: "Embed" },
 ];
 
@@ -146,11 +145,14 @@ function IdleCatalogSlug() {
       transition={{ duration: 0.18 }}
       className="flex items-baseline gap-x-3 sm:gap-x-5"
     >
-      <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-paper-deep/80">
-        idx 00
+      <span className="hidden font-mono text-[11px] uppercase tracking-[0.18em] text-terra sm:inline">
+        live · pharos atlantic
       </span>
-      <span className="hidden font-mono text-[11px] uppercase tracking-[0.18em] text-paper-deep/65 sm:inline">
-        drag · scroll · WASD
+      <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-paper-deep/65 sm:hidden">
+        live
+      </span>
+      <span className="hidden font-mono text-[11px] uppercase tracking-[0.18em] text-paper-deep/70 sm:inline">
+        click a tile to verify
       </span>
     </motion.div>
   );

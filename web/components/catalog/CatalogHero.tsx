@@ -33,16 +33,21 @@ export function CatalogHero() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.6 }}
-        className="pointer-events-none absolute inset-x-0 bottom-24 z-10 flex flex-col items-center gap-3 px-6 text-center sm:bottom-28"
+        className="pointer-events-none absolute inset-x-0 bottom-20 z-10 flex flex-col items-center gap-4 px-6 text-center sm:bottom-24"
       >
-        <p className="font-serif text-2xl italic text-ink sm:text-3xl">
-          A trust layer for autonomous agents.
+        <p className="max-w-2xl font-serif text-2xl leading-snug text-ink sm:text-3xl">
+          AI agents that can prove
+          <br className="hidden sm:inline" />{" "}
+          <span className="italic">what they&rsquo;re allowed to do.</span>
         </p>
-        <p className="hidden max-w-md font-mono text-[11px] uppercase tracking-[0.18em] text-ink-soft sm:block">
-          drag to wander · scroll to fly · WASD to walk · click to focus
+        <p className="max-w-xl font-serif text-base italic leading-relaxed text-ink-soft sm:text-lg">
+          Permissions onchain, in one read. Click any tile to verify one.
         </p>
-        <p className="max-w-md font-mono text-[11px] uppercase tracking-[0.18em] text-ink-soft sm:hidden">
-          drag to wander · pinch to fly · tap to focus
+        <p className="hidden max-w-md font-mono text-[11px] uppercase tracking-[0.18em] text-ink-quiet sm:mt-2 sm:block">
+          drag · scroll · WASD · click
+        </p>
+        <p className="max-w-md font-mono text-[11px] uppercase tracking-[0.18em] text-ink-quiet sm:hidden">
+          drag · pinch · tap
         </p>
       </motion.div>
 

@@ -126,6 +126,25 @@ export function AgentTile({ agent, layout, enterDelay }: Props) {
         }
       }}
     >
+      {agent.origin === "deployer" ? (
+        <>
+          <mesh position={[0, 0, -TILE_DEPTH - 0.02]} userData={{ baseOpacity: 0.9 }}>
+            <ringGeometry args={[PORTRAIT_W * 0.62, PORTRAIT_W * 0.66, 96]} />
+            <meshBasicMaterial color="#B85D3E" transparent opacity={0.9} />
+          </mesh>
+          <Text
+            position={[0, PORTRAIT_H / 2 + 0.32, 0.01]}
+            fontSize={0.11}
+            color="#B85D3E"
+            anchorX="center"
+            anchorY="bottom"
+            letterSpacing={0.18}
+          >
+            LIVE · DEPLOYER
+          </Text>
+        </>
+      ) : null}
+
       <mesh
         ref={baseMesh}
         castShadow
