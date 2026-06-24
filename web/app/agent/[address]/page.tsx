@@ -2,7 +2,7 @@ import type { Address } from "viem";
 import { getAddress } from "viem";
 import { notFound } from "next/navigation";
 import { AddressDisplay } from "@/components/AddressDisplay";
-import { AgentPortrait } from "@/components/AgentPortrait";
+import { AgentHero } from "@/components/catalog/AgentHero";
 import { Rule } from "@/components/Rule";
 import { ShareRow } from "@/components/ShareRow";
 import { Snippet } from "@/components/Snippet";
@@ -41,40 +41,32 @@ export default async function AgentPage({ params }: { params: Promise<Params> })
   const heldCount = snap.held.length;
 
   return (
-    <main className="mx-auto max-w-5xl px-8 py-16 sm:py-24">
-      <header className="flex items-baseline justify-between text-xs text-ink-quiet">
-        <p className="eyebrow">
-          {snap.exists ? "Agent · in the index" : "Agent · not in the index"}
-        </p>
-        <span className="font-mono tabular">
-          {network.name.toLowerCase()} · chain {network.chainId}
-        </span>
-      </header>
+    <>
+      <AgentHero address={address} heldCount={heldCount} />
 
-      <section className="mt-16 grid grid-cols-1 gap-x-12 gap-y-12 sm:grid-cols-[14rem_1fr]">
-        <div className="order-2 sm:order-1">
-          <div className="aspect-[4/5] w-full max-w-[14rem]">
-            <AgentPortrait address={address} className="h-full w-full" />
-          </div>
-          <p className="mt-3 font-mono text-[11px] tabular text-ink-quiet">
-            generated portrait · seeded by address
+      <main className="mx-auto max-w-5xl px-8 pt-16 pb-16 sm:pb-24">
+        <header className="flex items-baseline justify-between text-xs text-ink-quiet">
+          <p className="eyebrow">
+            {snap.exists ? "Agent · in the index" : "Agent · not in the index"}
           </p>
-        </div>
+          <span className="font-mono tabular">
+            {network.name.toLowerCase()} · chain {network.chainId}
+          </span>
+        </header>
 
-        <div className="order-1 sm:order-2 sm:pt-2">
-          <h1 className="display text-5xl text-ink sm:text-[4.5rem]">
+        <section className="mt-12">
+          <h1 className="display text-5xl text-ink sm:text-[5rem]">
             {truncateAddress(address, 6, 4)}
           </h1>
-          <p className="mt-6 max-w-prose font-serif text-lg leading-relaxed text-ink-soft">
+          <p className="mt-8 max-w-prose font-serif text-lg leading-relaxed text-ink-soft">
             {snap.exists
-              ? `Held by a single controller on ${network.name}. Three reads from chain compose this page: ownership of the agent token, the controller, and the credential ledger.`
+              ? `Held by a single controller on ${network.name}. Three reads from chain compose this dossier: ownership of the agent token, the controller, and the credential ledger.`
               : "This address has not minted an agent. It has no portable identity, no credential ledger, no evidence trail. Empty rows below the rule are intentional — the catalog presents what exists, not what could."}
           </p>
           <div className="mt-10">
             <AddressDisplay address={address} variant="block" />
           </div>
-        </div>
-      </section>
+        </section>
 
       <section className="mt-24">
         <div className="grid grid-cols-2 gap-y-6 gap-x-10 text-sm sm:grid-cols-4">
@@ -183,7 +175,8 @@ export default async function AgentPage({ params }: { params: Promise<Params> })
           On PharosScan ↗
         </a>
       </footer>
-    </main>
+      </main>
+    </>
   );
 }
 
