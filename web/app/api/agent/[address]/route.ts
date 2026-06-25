@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAddress, type Address } from "viem";
-import { readAgentSnapshot } from "@/lib/chain";
+import { readAgentSnapshot, readCapabilityHistory, capabilities } from "@/lib/chain";
 import { isAddressLike } from "@/lib/format";
 
 export const runtime = "nodejs";
@@ -16,7 +16,13 @@ export async function GET(
   }
   try {
     const subject = getAddress(raw) as Address;
-    const snap = await readAgentSnapshot(subject);
+    const [snap, history] = await Promise.all([
+      readAgentSnapshot(subject),
+      readCapabilityHistory(subject),
+    ]);
+
+    const capMap = new Map(capabilities.map((c) => [c.hash.toLowerCase(), c.id]));
+
     return NextResponse.json(
       {
         address: subject,
@@ -28,6 +34,12 @@ export async function GET(
           label: h.capability.label,
         })),
         heldCount: snap.held.length,
+        history: history.map((h) => ({
+          capability: capMap.get(h.capabilityHash.toLowerCase()) ?? h.capabilityHash,
+          capable: h.capable,
+          block: h.blockNumber.toString(),
+          txHash: h.txHash,
+        })),
       },
       { headers: { "Cache-Control": "public, max-age=15" } }
     );

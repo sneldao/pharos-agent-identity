@@ -271,3 +271,54 @@ export async function readIssuerActivity(): Promise<IssuanceLog> {
 }
 
 export { PHAROS_AGENT_ID_ABI, CREDENTIAL_REGISTRY_ABI };
+
+// ---------- Capability change history (AgentCapabilityChanged events) ----------
+
+const AGENT_CAPABILITY_CHANGED_EVENT = {
+  type: "event",
+  name: "AgentCapabilityChanged",
+  inputs: [
+    { name: "subject", type: "address", indexed: true },
+    { name: "capabilityHash", type: "bytes32", indexed: true },
+    { name: "capable", type: "bool", indexed: false },
+  ],
+} as const;
+
+export type CapabilityChange = {
+  capabilityHash: Hex;
+  capable: boolean;
+  blockNumber: bigint;
+  txHash: Hex;
+  logIndex: number;
+};
+
+export async function readCapabilityHistory(
+  subject: Address,
+  opts?: { fromBlock?: bigint; toBlock?: bigint }
+): Promise<CapabilityChange[]> {
+  try {
+    const head = opts?.toBlock ?? (await publicClient.getBlockNumber());
+    const SPAN = 200_000n;
+    const fromBlock = opts?.fromBlock ?? (head > SPAN ? head - SPAN : 0n);
+
+    const logs = await publicClient.getLogs({
+      address: addresses.credentialRegistry,
+      event: AGENT_CAPABILITY_CHANGED_EVENT,
+      args: { subject },
+      fromBlock,
+      toBlock: head,
+    });
+
+    return logs
+      .map((log) => ({
+        capabilityHash: (log.args as { capabilityHash?: Hex }).capabilityHash ?? "0x" as Hex,
+        capable: (log.args as { capable?: boolean }).capable ?? false,
+        blockNumber: log.blockNumber,
+        txHash: log.transactionHash ?? "0x" as Hex,
+        logIndex: log.logIndex,
+      }))
+      .sort((a, b) => (b.blockNumber > a.blockNumber ? 1 : b.blockNumber < a.blockNumber ? -1 : b.logIndex - a.logIndex));
+  } catch {
+    return [];
+  }
+}
