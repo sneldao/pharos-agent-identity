@@ -152,7 +152,7 @@ export async function* stewardLoop(
     tokenId = "2";
   }
 
-  yield { type: "boot", phase: "BOOT", tokenId, minted };
+  yield { type: "boot", phase: "BOOT", tokenId, minted, subject };
   yield { type: "phase", phase: "BOOT", status: "done" };
 
   // === 2. REASON ===
@@ -348,6 +348,7 @@ export async function* stewardLoop(
     gated: allGated,
     live: canWrite,
     rpcCalls,
+    subject,
   };
 }
 
