@@ -1,4 +1,5 @@
 import "server-only";
+import { createRequire } from "module";
 import {
   createWalletClient,
   http,
@@ -20,6 +21,9 @@ import {
 import { CREDENTIAL_REGISTRY_ABI, PHAROS_AGENT_ID_ABI } from "@ligis/abi";
 import type { StewardEvent } from "./steward-events";
 
+// 0G SDKs (CJS — use createRequire for ESM compat)
+const require = createRequire(import.meta.url);
+
 // ---------- Helpers ----------
 
 function sleep(ms: number) {
@@ -34,7 +38,55 @@ function capabilityHash(name: string): Hex {
   return keccak256(toBytes(name)) as Hex;
 }
 
-// ---------- Reasoning (local policy) ----------
+// ---------- Reasoning prompt (shared with CLI policy) ----------
+
+function buildReasoningPrompt(goal: string): string {
+  const capList = knownCapabilities
+    .map((c) => `  - ${c.id}: ${c.label}`)
+    .join("\n");
+
+  return `You are a Trust Steward agent on the Pharos Network. Given a natural-language goal, determine which capabilities are required to accomplish it.
+
+Available capabilities:
+${capList}
+
+Respond with ONLY a JSON object (no markdown, no explanation outside the JSON):
+{
+  "capabilities": ["agent.commerce.escrow", ...],
+  "reasoning": "brief explanation of why these capabilities are required"
+}
+
+Only include capabilities from the list above. If no capabilities are needed, return an empty array.
+
+Goal: ${goal}`;
+}
+
+function extractJson(text: string): { capabilities?: unknown; reasoning?: unknown } | null {
+  try { return JSON.parse(text); } catch {}
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fence) { try { return JSON.parse(fence[1]); } catch {} }
+  const brace = text.match(/\{[\s\S]*\}/);
+  if (brace) { try { return JSON.parse(brace[0]); } catch {} }
+  return null;
+}
+
+function parseReasoning(text: string, goal: string): { reasoning: string; capabilities: CapabilityRef[] } {
+  const json = extractJson(text);
+  if (!json) return { reasoning: text, capabilities: [] };
+  const rawCaps: string[] = Array.isArray(json.capabilities) ? json.capabilities as string[] : [];
+  const reasoning: string = typeof json.reasoning === "string" ? json.reasoning : "";
+  const caps = knownCapabilities.filter((c) => rawCaps.includes(c.id));
+  if (caps.length === 0) {
+    const fallback = knownCapabilities.filter((c) => {
+      const kw = c.id.split(".").pop() ?? "";
+      return goal.toLowerCase().includes(kw);
+    });
+    return { reasoning: reasoning || text, capabilities: fallback.length > 0 ? fallback : knownCapabilities.slice(3, 5) };
+  }
+  return { reasoning, capabilities: caps };
+}
+
+// ---------- Local reasoning (fallback when 0G Compute is unavailable) ----------
 
 const GOAL_KEYWORDS: Array<{ pattern: RegExp; caps: string[] }> = [
   { pattern: /escrow|hold.*fund|custod/i, caps: ["agent.commerce.escrow"] },
@@ -55,16 +107,85 @@ function localReason(goal: string): { reasoning: string; capabilities: Capabilit
       for (const c of caps) matched.add(c);
     }
   }
-
   if (matched.size === 0) {
     matched.add("agent.commerce.escrow");
     matched.add("agent.commerce.swap");
   }
-
   const caps = knownCapabilities.filter((c) => matched.has(c.id));
   const reasoning = `The goal calls for an agent that ${goal.toLowerCase().includes("escrow") ? "participates in escrow-backed commerce" : "operates as a Pharos agent"}. Detected capabilities: ${caps.map((c) => c.id).join(", ")}.`;
-
   return { reasoning, capabilities: caps };
+}
+
+// ---------- 0G Compute (reasoning) ----------
+
+let computeBroker: any = null;
+let computeMetadata: { endpoint: string; model: string } | null = null;
+
+async function zeroGReason(prompt: string): Promise<{ text: string; verified: boolean; model: string }> {
+  const { ethers } = await import("ethers");
+  const privateKey = process.env.ZEROG_PRIVATE_KEY;
+  if (!privateKey) throw new Error("ZEROG_PRIVATE_KEY not set");
+  const rpcUrl = process.env.ZEROG_RPC_URL || "https://evmrpc-testnet.0g.ai";
+  const provider = process.env.ZEROG_PROVIDER || "0x69Eb5a0BD7d0f4bF39eD5CE9Bd3376c61863aE08";
+
+  if (!computeBroker) {
+    const { createZGComputeNetworkBroker } = require("@0gfoundation/0g-compute-ts-sdk");
+    const rpcProvider = new ethers.JsonRpcProvider(rpcUrl);
+    const wallet = new ethers.Wallet(privateKey, rpcProvider);
+    computeBroker = await createZGComputeNetworkBroker(wallet);
+  }
+
+  if (!computeMetadata) {
+    computeMetadata = await computeBroker.inference.getServiceMetadata(provider);
+  }
+  const meta = computeMetadata!;
+
+  const headers = await computeBroker.inference.getRequestHeaders(provider);
+  const response = await fetch(`${meta.endpoint}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: headers.Authorization },
+    body: JSON.stringify({ model: meta.model, messages: [{ role: "user", content: prompt }] }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`0G inference failed: ${response.status} ${response.statusText}${body ? ` — ${body}` : ""}`);
+  }
+
+  const completion = await response.json() as any;
+  const text: string = completion.choices?.[0]?.message?.content ?? "";
+  const chatID = response.headers.get("ZG-Res-Key") || completion.id;
+  const usage = completion.usage ? JSON.stringify(completion.usage) : "";
+  const verified = await computeBroker.inference.processResponse(provider, chatID, usage);
+
+  return { text, verified: verified === true, model: meta.model };
+}
+
+// ---------- 0G Storage (evidence) ----------
+
+async function zeroGStore(manifest: object): Promise<{ rootHash: string; txHash: string }> {
+  const { ethers } = await import("ethers");
+  const { Indexer, MemData } = await import("@0gfoundation/0g-storage-ts-sdk");
+  const privateKey = process.env.ZEROG_PRIVATE_KEY;
+  if (!privateKey) throw new Error("ZEROG_PRIVATE_KEY not set");
+  const evmRpc = process.env.ZEROG_RPC_URL || "https://evmrpc-testnet.0g.ai";
+  const indexerRpc = process.env.ZEROG_INDEXER_RPC || "https://indexer-storage-testnet-turbo.0g.ai";
+
+  const provider = new ethers.JsonRpcProvider(evmRpc);
+  const signer = new ethers.Wallet(privateKey, provider);
+  const indexer = new Indexer(indexerRpc);
+
+  const data = new TextEncoder().encode(JSON.stringify(manifest));
+  const memData = new MemData(data);
+
+  const [tree, treeErr] = await memData.merkleTree();
+  if (treeErr !== null) throw new Error(`0G Storage merkle tree error: ${treeErr}`);
+
+  const [tx, uploadErr] = await indexer.upload(memData, evmRpc, signer as any);
+  if (uploadErr !== null) throw new Error(`0G Storage upload error: ${uploadErr}`);
+
+  if ("rootHash" in tx) return { rootHash: tx.rootHash, txHash: tx.txHash };
+  return { rootHash: tx.rootHashes[0], txHash: tx.txHashes[0] };
 }
 
 // ---------- Wallet client (for write ops) ----------
@@ -83,6 +204,43 @@ function getWalletClient() {
     client: createWalletClient({ account, transport: http(rpc, { retryCount: 3, timeout: 20_000 }), chain: pharosAtlantic }),
     account,
   };
+}
+
+/**
+ * Write to a contract by signing locally and sending via sendRawTransaction.
+ * This bypasses eth_sendTransaction (not supported by some Pharos RPCs).
+ */
+async function sendWriteContract(
+  wallet: NonNullable<ReturnType<typeof getWalletClient>>,
+  params: {
+    address: Address;
+    abi: readonly unknown[];
+    functionName: string;
+    args: readonly unknown[];
+  }
+): Promise<Hex> {
+  const { encodeFunctionData } = await import("viem");
+  const data = encodeFunctionData({ abi: params.abi as any, functionName: params.functionName, args: params.args as any });
+
+  // Estimate gas via public client
+  const gas = await publicClient.estimateGas({
+    account: wallet.account.address,
+    to: params.address,
+    data,
+  }).catch(() => 200000n);
+
+  // Sign transaction locally
+  const serialized = await wallet.account.signTransaction({
+    chainId: pharosAtlantic.id,
+    to: params.address,
+    data,
+    gas,
+    maxFeePerGas: 11000000000n,
+    maxPriorityFeePerGas: 1100000000n,
+  });
+
+  // Send raw transaction via public client (uses eth_sendRawTransaction)
+  return publicClient.sendRawTransaction({ serializedTransaction: serialized });
 }
 
 // ---------- Rate limiting (in-memory, per-IP) ----------
@@ -131,15 +289,13 @@ export async function* stewardLoop(
     const existing = await readAgentId(subject);
     rpcCalls++;
     if (existing === 0n) {
-      const hash = await wallet.client.writeContract({
+      const hash = await sendWriteContract(wallet!, {
         address: addresses.pharosAgentId,
         abi: PHAROS_AGENT_ID_ABI,
         functionName: "mintSelf",
         args: ["ipfs://steward-agent"],
-        chain: pharosAtlantic,
-        account: wallet.account.address,
       });
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      await publicClient.waitForTransactionReceipt({ hash });
       const newId = await readAgentId(subject);
       rpcCalls++;
       tokenId = newId.toString();
@@ -158,7 +314,31 @@ export async function* stewardLoop(
   // === 2. REASON ===
   yield { type: "phase", phase: "REASON", status: "start" };
 
-  const { reasoning, capabilities: requiredCaps } = localReason(goal);
+  let reasoning: string;
+  let requiredCaps: CapabilityRef[];
+
+  const hasZeroG = !!process.env.ZEROG_PRIVATE_KEY;
+
+  if (live && hasZeroG) {
+    // 0G Compute: TEE-verified LLM inference
+    try {
+      const prompt = buildReasoningPrompt(goal);
+      const result = await zeroGReason(prompt);
+      const parsed = parseReasoning(result.text, goal);
+      reasoning = parsed.reasoning || result.text;
+      requiredCaps = parsed.capabilities;
+    } catch (err) {
+      // Fallback to local policy if 0G Compute fails
+      reasoning = `(0G Compute unavailable: ${err instanceof Error ? err.message : String(err)}. Using local policy.) `;
+      const fallback = localReason(goal);
+      reasoning += fallback.reasoning;
+      requiredCaps = fallback.capabilities;
+    }
+  } else {
+    const fallback = localReason(goal);
+    reasoning = fallback.reasoning;
+    requiredCaps = fallback.capabilities;
+  }
 
   for (const chunk of reasoning.split(/(\s+)/)) {
     await sleep(35 + Math.random() * 40);
@@ -235,13 +415,11 @@ export async function* stewardLoop(
 
         const signature = await wallet.account.sign({ hash: digest });
 
-        const issueHash = await wallet!.client.writeContract({
+        const issueHash = await sendWriteContract(wallet!, {
           address: addresses.credentialRegistry,
           abi: CREDENTIAL_REGISTRY_ABI,
           functionName: "issue",
           args: [issuer, subject, capHash, issuedAt, expiresAt, nonce, signature],
-          chain: pharosAtlantic,
-          account: wallet!.account.address,
         });
         await publicClient.waitForTransactionReceipt({ hash: issueHash });
 
@@ -286,14 +464,16 @@ export async function* stewardLoop(
   let rootHash: string;
   let anchorTx: string;
   let tokenUri: string;
-  const storageType: "0g" | "local" = "local";
+  let storageType: "0g" | "local" = "local";
 
   if (canWrite) {
-    // Build a local evidence manifest and hash it
+    // Build evidence manifest
     const manifest = {
       version: 1,
       agentId: tokenId,
       controller: subject,
+      network: pharosAtlantic.name,
+      chainId: pharosAtlantic.id,
       goal,
       reasoning,
       capabilities: requiredCaps.map((c, i) => ({
@@ -305,18 +485,30 @@ export async function* stewardLoop(
       gated: allGated,
       recordedAt: Math.floor(Date.now() / 1000),
     };
-    rootHash = keccak256(toBytes(JSON.stringify(manifest))) as string;
+
+    // Try 0G Storage first, fall back to local hash
+    if (process.env.ZEROG_PRIVATE_KEY) {
+      try {
+        const stored = await zeroGStore(manifest);
+        rootHash = stored.rootHash;
+        tokenUri = `0g://${stored.rootHash}`;
+        storageType = "0g";
+      } catch {
+        rootHash = keccak256(toBytes(JSON.stringify(manifest))) as string;
+        tokenUri = `0g://${rootHash.slice(2, 34)}`;
+      }
+    } else {
+      rootHash = keccak256(toBytes(JSON.stringify(manifest))) as string;
+      tokenUri = `0g://${rootHash.slice(2, 34)}`;
+    }
 
     // Anchor via setTokenURI
-    tokenUri = `0g://${rootHash.slice(2, 34)}`;
     try {
-      const anchorHash = await wallet!.client.writeContract({
+      const anchorHash = await sendWriteContract(wallet!, {
         address: addresses.pharosAgentId,
         abi: PHAROS_AGENT_ID_ABI,
         functionName: "setTokenURI",
         args: [BigInt(tokenId), tokenUri],
-        chain: pharosAtlantic,
-        account: wallet!.account.address,
       });
       await publicClient.waitForTransactionReceipt({ hash: anchorHash });
       anchorTx = anchorHash;

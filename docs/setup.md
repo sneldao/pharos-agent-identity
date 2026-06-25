@@ -68,6 +68,15 @@ The web frontend runs the Steward loop in two modes:
 - **Live**: set `LIGIS_STEWARD_KEY` to a funded Pharos Atlantic wallet private
   key. The loop will make real `isCapableMulti` reads, sign and submit EIP-712
   credentials via `issue()`, and anchor evidence via `setTokenURI`.
+  - **REASON phase**: if `ZEROG_PRIVATE_KEY` is set, the loop calls 0G Compute
+    (TEE-verified LLM) to map the goal to required capabilities. Falls back to
+    local keyword matching if 0G is unavailable or not configured.
+  - **RECORD phase**: if `ZEROG_PRIVATE_KEY` is set, the loop uploads the full
+    evidence manifest to 0G Storage and anchors the Merkle root on-chain. Falls
+    back to a local `keccak256` hash if 0G Storage is unavailable.
+  - **Write transactions**: signed locally and sent via `eth_sendRawTransaction`
+    (bypassing `eth_sendTransaction`, which the default Pharos RPC does not
+    support). Set `PHAROS_RPC_URL` if using a custom RPC endpoint.
 
 **Security recommendation: use a dedicated steward wallet, not your deployer
 key.** Create a separate wallet for the web steward, fund it with a small
@@ -84,6 +93,12 @@ Live writes are rate-limited to 3 runs per minute per IP address.
 ```bash
 # In Vercel project settings → Environment Variables:
 LIGIS_STEWARD_KEY=0x...  # dedicated steward wallet (not your deployer key)
+ZEROG_PRIVATE_KEY=0x...  # 0G testnet wallet for Compute + Storage (same key as CLI)
+# Optional:
+# PHAROS_RPC_URL=https://...  # custom RPC if default is rate-limited
+# ZEROG_RPC_URL=https://evmrpc-testnet.0g.ai  # 0G EVM RPC (default works)
+# ZEROG_INDEXER_RPC=https://indexer-storage-testnet-turbo.0g.ai  # 0G Storage indexer
+# ZEROG_PROVIDER=0x69Eb5a0BD7d0f4bF39eD5CE9Bd3376c61863aE08  # default Gemma 3 27B
 ```
 
 ## 0G wallet setup
