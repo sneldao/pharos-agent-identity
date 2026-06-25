@@ -39,16 +39,16 @@ ask "who are you, and who vouches for that?"
 
 ## End-to-end demo txs (executed live on Atlantic)
 
-The full `scripts/demo.sh` flow ran on the live testnet (previous deployment — re-run on new contracts for fresh tx hashes):
+The full `scripts/demo.sh` flow ran on the live testnet:
 
 | Step | Action | Tx hash | Result |
 |------|--------|---------|--------|
-| 1 | `mintSelf` for the demo subject | `0x88dd4d47bb1fcde8f8f00500d630b653a2c38a4f0410b52b364ff49367036cda` | tokenId 1 minted |
-| 2 | `issue` (EIP-712) for `agent.commerce.escrow` | `0x5998675b5fee8168ef16356ff188f33165a8c2f5aa9e8129d8470a1c0ebf4e9a` | CredentialIssued |
+| 1 | `mintSelf` for the demo subject | `0x9313e4d8e8a7a1bf07b97e0e1490f8c43bea20bd1baf578b1cf99fb8b7c98bc6` | tokenId 1 minted |
+| 2 | `issue` (EIP-712) for `agent.commerce.escrow` | `0x9728f0a71ac3e6af1065db2f17a35ff32341e99c4c0c339dca93ead1154a61db` | CredentialIssued |
 | 3 | `isCapable(subject, capability)` | view call | `true` |
-| 4 | `revoke` (issuer action) | `0x80cdb76d536a837927a0a56886533a9671542c67d1b9654ce1aa6d7559f9143b` | CredentialRevoked |
+| 4 | `revoke` (issuer action) | `0x00e6a047078042ec65148dab59730eaf6e8b94bfb6379cd143f08eafc8d3e3bf` | CredentialRevoked |
 | 5 | `isCapable(subject, capability)` | view call | `false` |
-| 6 | `rotate(tokenId, newController)` | `0xdaa74640c505c2b6c4ad0c848875beeb5a153c9494bcfb6e50b6fd511b908484` | ownerOf(1) = newController |
+| 6 | `rotate(tokenId, newController)` | `0x55c96cab0cc17318b01746df0a67f55f5521a61d41f8092273917ce33529029e` | ownerOf(1) = newController |
 
 ## Deployer wallet (for reference)
 
@@ -266,7 +266,7 @@ Solo submitter: `<your name>`
 - [x] 17/17 TypeScript unit tests passing (node:test, mocked clients)
 - [x] Solidity 0.8.24, no warnings, optimizer on
 - [x] Deployed to Pharos Atlantic testnet (chainId 688689) — see tx hashes above
-- [ ] Source verified on Pharos Scan (verify script updated with correct API endpoint — run `bash scripts/verify.sh atlantic` after redeploy to get the badge)
+- [x] Source verified on Pharos Scan (both contracts verified via socialscan API using `solidity-standard-json-input` format)
 - [x] CLI: 8 commands, JSON output — verified live on Atlantic
 - [x] MCP server: 7 tools (including `ligis-run-steward`)
 - [x] Trust Steward Agent: full loop (boot → reason → gate → act → record) with 0G Compute + 0G Storage

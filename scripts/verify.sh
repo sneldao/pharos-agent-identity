@@ -77,79 +77,42 @@ verify_contract() {
 
   echo "Verifying $name at $address..."
 
-  # Flatten the source for the API
-  local flattened
-  flattened=$("$FORGE" flatten "$source_file" 2>/dev/null)
+  # Generate standard JSON input via Foundry (includes optimizer, evmVersion, remappings)
+  local std_json
+  std_json=$("$FORGE" verify-contract "$address" "$contract_path" \
+    --chain 688689 \
+    --verifier etherscan \
+    --verifier-url "$API_URL" \
+    --etherscan-api-key dummy \
+    --compiler-version "v$COMPILER+commit.e11b9ed9" \
+    --show-standard-json-input 2>/dev/null | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)))")
 
-  if [[ -z "$flattened" ]]; then
-    echo "  ERROR: $FORGE flatten produced empty output" >&2
+  if [[ -z "$std_json" ]]; then
+    echo "  ERROR: forge verify-contract --show-standard-json-input failed" >&2
     return 1
   fi
-
-  local args_json
-  args_json=$(jq -n \
-    --arg apikey "$SOCIALSCAN_API_KEY" \
-    --arg module "contract" \
-    --arg action "verifysourcecode" \
-    --arg contractaddress "$address" \
-    --arg sourceCode "$flattened" \
-    --arg codeformat "solidity-single-file" \
-    --arg contractname "$name" \
-    --arg compilerversion "v$COMPILER+commit.e11b9ed9" \
-    --argjson optimizerRuns "$OPTIMIZER_RUNS" \
-    '{apikey: $apikey, module: $module, action: $action, contractaddress: $contractaddress, sourceCode: $sourceCode, codeformat: $codeformat, contractname: $contractname, compilerversion: $compilerversion, optimizationUsed: 1, runs: $optimizerRuns, evmVersion: "cancun", licenseType: "4", constructorArguements: ""}')
 
   local response
-  response=$(curl -s -X POST "$API_URL" \
-    -H "Content-Type: application/json" \
-    -d "$args_json" 2>&1)
+  response=$(curl -s -X POST "$API_URL?apikey=$SOCIALSCAN_API_KEY" \
+    -H "Content-Type: application/x-www-form-urlencoded" \
+    --data-urlencode "module=contract" \
+    --data-urlencode "action=verifysourcecode" \
+    --data-urlencode "contractaddress=$address" \
+    --data-urlencode "sourceCode=$std_json" \
+    --data-urlencode "codeformat=solidity-standard-json-input" \
+    --data-urlencode "contractname=$name" \
+    --data-urlencode "compilerversion=v$COMPILER+commit.e11b9ed9" 2>&1)
 
-  # If JSON body fails, try form-encoded (some socialscan endpoints prefer it)
-  if echo "$response" | jq -e '.detail' >/dev/null 2>&1; then
-    response=$(curl -s -X POST "$API_URL" \
-      --data-urlencode "apikey=$SOCIALSCAN_API_KEY" \
-      --data-urlencode "module=contract" \
-      --data-urlencode "action=verifysourcecode" \
-      --data-urlencode "contractaddress=$address" \
-      --data-urlencode "sourceCode=$flattened" \
-      --data-urlencode "codeformat=solidity-single-file" \
-      --data-urlencode "contractname=$name" \
-      --data-urlencode "compilerversion=v${COMPILER}+commit.e11b9ed9" \
-      --data-urlencode "optimizationUsed=1" \
-      --data-urlencode "runs=$OPTIMIZER_RUNS" \
-      --data-urlencode "evmVersion=cancun" \
-      --data-urlencode "licenseType=4" \
-      --data-urlencode "constructorArguements=" 2>&1)
+  echo "  Response: $response"
+
+  local status
+  status=$(echo "$response" | jq -r '.status // empty')
+  if [[ "$status" == "1" ]]; then
+    echo "  ✓ $name verified"
+    return 0
   fi
 
-  local guid
-  guid=$(echo "$response" | jq -r '.result // empty')
-
-  if [[ -z "$guid" ]]; then
-    echo "  Response: $response"
-    echo "  ERROR: verification submission failed" >&2
-    return 1
-  fi
-
-  echo "  Submission GUID: $guid"
-
-  # Poll for status
-  for i in 1 2 3 4 5 6 7 8 9 10; do
-    sleep 5
-    local status_resp
-    status_resp=$(curl -s "$API_URL?module=contract&action=checkverifystatus&guid=$guid&apikey=$SOCIALSCAN_API_KEY")
-    local status
-    status=$(echo "$status_resp" | jq -r '.result // empty')
-    echo "  Status: $status"
-    if [[ "$status" == "Pass - Verified" || "$status" == "Already Verified" ]]; then
-      echo "  ✓ $name verified"
-      return 0
-    fi
-    if [[ "$status" == "Fail - Unable to verify" || "$status" == "Pending - processing" ]]; then
-      continue
-    fi
-  done
-  echo "  WARNING: verification did not complete in time. Check the GUID on the explorer." >&2
+  echo "  ERROR: verification failed" >&2
   return 1
 }
 
