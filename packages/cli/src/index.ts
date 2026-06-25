@@ -21,6 +21,7 @@
 
 import { capabilityHash, loadConfig, type ChainAdapter } from "@ligis/core";
 import { EvmAdapter } from "@ligis/adapter-evm";
+import { CasperAdapter } from "@ligis/adapter-casper";
 import { TrustSteward } from "@ligis/agent-logic";
 import { ZeroGCompute, ZeroGStorage, loadZeroGConfig, loadZeroGStorageConfig } from "@ligis/zerog";
 
@@ -42,7 +43,7 @@ function getAdapter(): ChainAdapter {
     case "pharos":
       return new EvmAdapter();
     case "casper":
-      throw new Error("Casper adapter not yet implemented (planned: @ligis/adapter-casper).");
+      return new CasperAdapter();
     default:
       throw new Error(`Unknown --chain: ${chain}. Supported: evm, casper.`);
   }

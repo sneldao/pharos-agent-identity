@@ -16,6 +16,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { capabilityHash, type ChainAdapter } from "@ligis/core";
 import { EvmAdapter } from "@ligis/adapter-evm";
+import { CasperAdapter } from "@ligis/adapter-casper";
 import { TrustSteward } from "@ligis/agent-logic";
 import {
   ZeroGCompute,
@@ -40,7 +41,8 @@ function getAdapter(chain: string | undefined): ChainAdapter {
       adapter = new EvmAdapter();
       break;
     case "casper":
-      throw new Error("Casper adapter not yet implemented (planned: @ligis/adapter-casper).");
+      adapter = new CasperAdapter();
+      break;
     default:
       throw new Error(`Unknown chain: ${key}. Supported: evm, casper.`);
   }

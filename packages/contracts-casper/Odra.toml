@@ -1,0 +1,12 @@
+# Odra project configuration.
+#
+# Run `cargo odra build` to compile WASM, `cargo odra test` for unit tests,
+# and `cargo odra test -b casper` to run integration tests against a live node.
+
+[[contracts]]
+name = "agent_id"
+fqn = "ligis_contracts_casper::agent_id::AgentId"
+
+[[contracts]]
+name = "credential_registry"
+fqn = "ligis_contracts_casper::credential_registry::CredentialRegistry"

@@ -19,6 +19,7 @@
   "references": [
     { "path": "../core/tsconfig.json" },
     { "path": "../adapter-evm/tsconfig.json" },
+    { "path": "../adapter-casper/tsconfig.json" },
     { "path": "../agent-logic/tsconfig.json" },
     { "path": "../zerog/tsconfig.json" }
   ],

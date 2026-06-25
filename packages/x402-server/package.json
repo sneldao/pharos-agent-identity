@@ -1,22 +1,20 @@
 {
-  "name": "@ligis/mcp-server",
+  "name": "@ligis/x402-server",
   "version": "0.1.0",
-  "description": "MCP server for Ligis — agent identity + capability credentials across chains",
+  "description": "Ligis Trust Gate — credential-gated x402 resource server on Casper",
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "start": "node --enable-source-maps dist/index.js",
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@hono/node-server": "^1.13.0",
     "@ligis/adapter-casper": "workspace:*",
-    "@ligis/adapter-evm": "workspace:*",
-    "@ligis/agent-logic": "workspace:*",
     "@ligis/core": "workspace:*",
-    "@ligis/zerog": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "hono": "^4.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

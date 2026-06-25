@@ -1,0 +1,21 @@
+{
+  "name": "@ligis/contracts-casper",
+  "version": "0.1.0",
+  "description": "Casper (Odra/Rust) contracts for Ligis — agent identity & capability credentials",
+  "private": true,
+  "keywords": [
+    "casper",
+    "odra",
+    "rust",
+    "agent",
+    "identity",
+    "credentials",
+    "eip-712"
+  ],
+  "scripts": {
+    "build": "cargo odra build",
+    "test": "cargo odra test",
+    "test:casper": "cargo odra test -b casper",
+    "clean": "cargo clean"
+  }
+}

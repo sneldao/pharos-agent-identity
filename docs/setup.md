@@ -151,6 +151,93 @@ To set up a fresh wallet from scratch (alternative approach):
    npx tsx scripts/setup-zerog.ts
    ```
 
+## Casper Testnet setup
+
+Ligis ships a `CasperAdapter` (`packages/adapter-casper`) and an Odra contract
+workspace (`packages/contracts-casper`). The adapter is wired into the CLI and
+MCP server via `--chain casper`. To use it end-to-end:
+
+### 1. Prerequisites
+
+- **Rust toolchain** with the `wasm32-unknown-unknown` target:
+  ```bash
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  rustup target add wasm32-unknown-unknown
+  ```
+- **cargo-odra** (Odra CLI):
+  ```bash
+  cargo install cargo-odra --locked
+  ```
+- **just** (task runner used by Odra):
+  ```bash
+  cargo install just --locked
+  ```
+
+### 2. Casper Wallet + Testnet CSPR
+
+1. Install the [Casper Wallet](https://www.casperwallet.io/) and create or
+   import an account.
+2. Switch the wallet to **Testnet**.
+3. Visit <https://testnet.cspr.live/tools/faucet>, connect the wallet, and
+   click **Request tokens** (one-time per account).
+4. Export the secret key as a PEM file (`secret_key.pem`) — the adapter reads
+   it via `LIGIS_CASPER_KEY_PATH`.
+
+### 3. Build the Odra contracts
+
+```bash
+cd packages/contracts-casper
+cargo odra build              # produces WASM in wasm/
+cargo odra test               # unit tests (in-memory env)
+```
+
+### 4. Deploy to Casper Testnet
+
+```bash
+# casper-client CLI install: see https://docs.casper.network/users/tools/casper-client/
+casper-client put-transaction \
+  --node-address https://node.testnet.casper.network/rpc \
+  --chain-name casper-test \
+  --secret-key ~/.casper/secret_key.pem \
+  --transaction-target-mode session \
+  --transaction-path packages/contracts-casper/wasm/credential_registry.wasm \
+  --payment-amount 10000000000
+```
+
+After deployment, record the resulting **contract package hash** and export it:
+
+```bash
+export LIGIS_CASPER_CREDENTIAL_REGISTRY=hash-<...>
+export LIGIS_CASPER_AGENT_ID=hash-<...>
+```
+
+### 5. Run the adapter
+
+```bash
+export LIGIS_CASPER_NETWORK=testnet
+export LIGIS_CASPER_PUBLIC_KEY=<your public-key hex>
+export LIGIS_CASPER_KEY_PATH=~/.casper/secret_key.pem
+
+# CLI
+pnpm --filter @ligis/cli start -- --chain casper info
+pnpm --filter @ligis/cli start -- --chain casper verify --subject <account-hash> --capability kyc.basic
+
+# MCP — pass `"chain": "casper"` to any tool call
+pnpm --filter @ligis/mcp-server dev
+```
+
+### 6. Optional: CSPR.cloud node access
+
+For production-grade RPC (rate limits, low latency, SSE), use CSPR.cloud:
+
+```bash
+export LIGIS_CASPER_RPC_URL=https://node.testnet.cspr.cloud/rpc
+export LIGIS_CASPER_AUTH=<your CSPR.cloud bearer token>
+```
+
+> **Buildathon note**: Casper x402 Facilitator access is sponsored for
+> Buildathon teams — see <https://dorahacks.io/hackathon/2202/detail>.
+
 ## Forge path note
 
 A separate CLI tool called `forge` (e.g. at `~/.local/bin/forge`) can shadow Foundry's forge in the PATH. The project includes `scripts/forge.sh` which finds Foundry's forge at `~/.foundry/bin/forge` first, then falls back to `forge` in PATH only if it reports a Foundry version string. All npm scripts and deploy/verify scripts use it.

@@ -1,0 +1,24 @@
+[package]
+name = "ligis-contracts-casper"
+version = "0.1.0"
+edition = "2021"
+description = "Odra (Casper) contracts for Ligis — agent identity & capability credentials"
+license = "MIT"
+
+[lib]
+crate-type = ["rlib"]
+bench = false
+
+[dependencies]
+odra = { version = "2.8.1", default-features = false }
+odra-modules = { version = "2.8.1", default-features = false }
+
+[dev-dependencies]
+odra-test = { version = "2.8.1", default-features = false }
+
+[features]
+default = []
+
+[profile.release]
+codegen-units = 1
+lto = true

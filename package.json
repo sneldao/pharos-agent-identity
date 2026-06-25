@@ -11,6 +11,8 @@
     "start": "node --enable-source-maps packages/cli/dist/index.js",
     "mcp": "node --enable-source-maps packages/mcp-server/dist/index.js",
     "mcp:dev": "tsx packages/mcp-server/src/index.ts",
+    "x402": "node --enable-source-maps packages/x402-server/dist/index.js",
+    "x402:dev": "tsx watch packages/x402-server/src/index.ts",
     "test": "bash scripts/forge.sh test -vvv",
     "test:ts": "node --import tsx --test packages/*/test/**/*.test.ts",
     "test:all": "bash scripts/forge.sh test -vvv && pnpm run test:ts",
