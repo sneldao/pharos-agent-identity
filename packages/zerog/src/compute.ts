@@ -29,8 +29,16 @@ export interface ZeroGConfig {
   provider: string;
 }
 
-/** Default testnet provider: Gemma 3 27B IT (TeeML-verifiable). */
-const DEFAULT_PROVIDER = "0x69Eb5a0BD7d0f4bF39eD5CE9Bd3376c61863aE08";
+/**
+ * Default testnet provider: Qwen 2.5 7B (TeeML-verifiable).
+ *
+ * Changed from Gemma 3 27B (dead — compute-network-8.integratenetwork.work
+ * has been unreachable since mid-2026) to Qwen 2.5 7B
+ * (provider 0xa48f01287233509FD694a22Bf840225062E67836 on Galileo testnet)
+ * which has verified working. Requires ≥1.0 OG minimum reserve in provider
+ * ledger balance.
+ */
+const DEFAULT_PROVIDER = "0xa48f01287233509FD694a22Bf840225062E67836";
 
 /**
  * Minimal shape of an OpenAI-compatible chat completion response.
@@ -143,11 +151,12 @@ export async function setupProvider(config: ZeroGConfig): Promise<void> {
     wallet as unknown as Parameters<typeof createZGComputeNetworkBroker>[0],
   );
 
-  await broker.ledger.addLedger(3);
+  await broker.ledger.addLedger(5);
   await broker.inference.acknowledgeProviderSigner(config.provider);
+  // Qwen 2.5 7B requires ≥ 1.0 OG minimum reserve; transfer 1.5 to be safe
   await broker.ledger.transferFund(
     config.provider,
     "inference",
-    ethers.parseEther("0.1"),
+    ethers.parseEther("1.5"),
   );
 }

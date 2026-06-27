@@ -36,7 +36,6 @@ export async function issueId(
           functionName: "mintSelf",
           args: [tokenUri],
           chain: ctx.chain,
-          account: account.address,
         })
       : await walletClient.writeContract({
           address: ctx.deployment.pharosAgentId,
@@ -44,7 +43,6 @@ export async function issueId(
           functionName: "mint",
           args: [controller, tokenUri],
           chain: ctx.chain,
-          account: account.address,
         });
 
   const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
@@ -62,7 +60,7 @@ export async function issueId(
     tokenId: tokenId.toString(),
     txHash: hash,
     blockNumber: receipt.blockNumber.toString(),
-    explorer: `${ctx.network.explorerUrl}tx/${hash}`,
+    explorer: `${ctx.network.explorerUrl}/tx/${hash}`,
   };
 }
 
@@ -139,17 +137,15 @@ export async function revoke(
       functionName: "revoke",
       args: [subject, capHash, nonce],
       chain: ctx.chain,
-      account: issuerAccount.address,
     });
   } else {
-    const { walletClient, account } = requireWallet(ctx);
+    const { walletClient } = requireWallet(ctx);
     hash = await walletClient.writeContract({
       address: ctx.deployment.credentialRegistry,
       abi: CREDENTIAL_REGISTRY_ABI,
       functionName: "revoke",
       args: [subject, capHash, nonce],
       chain: ctx.chain,
-      account: account.address,
     });
   }
 
@@ -162,7 +158,7 @@ export async function revoke(
     nonce: nonce.toString(),
     txHash: hash,
     blockNumber: receipt.blockNumber.toString(),
-    explorer: `${ctx.network.explorerUrl}tx/${hash}`,
+    explorer: `${ctx.network.explorerUrl}/tx/${hash}`,
   };
 }
 
@@ -195,7 +191,6 @@ export async function rotate(
     functionName: "rotate",
     args: [tokenId, newController],
     chain: ctx.chain,
-    account: account.address,
   });
 
   const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
@@ -207,7 +202,7 @@ export async function rotate(
     to: newController,
     txHash: hash,
     blockNumber: receipt.blockNumber.toString(),
-    explorer: `${ctx.network.explorerUrl}tx/${hash}`,
+    explorer: `${ctx.network.explorerUrl}/tx/${hash}`,
   };
 }
 
@@ -312,7 +307,6 @@ export async function submitCredential(
     functionName: "issue",
     args: [issuer, subject, signed.capabilityHash, issuedAt, expiresAt, nonce, signed.signature],
     chain: ctx.chain,
-    account: account.address,
   });
 
   const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
@@ -325,7 +319,7 @@ export async function submitCredential(
     nonce: nonce.toString(),
     txHash: hash,
     blockNumber: receipt.blockNumber.toString(),
-    explorer: `${ctx.network.explorerUrl}tx/${hash}`,
+    explorer: `${ctx.network.explorerUrl}/tx/${hash}`,
   };
 }
 
@@ -350,7 +344,6 @@ export async function updateTokenUri(
     functionName: "setTokenURI",
     args: [tokenId, opts.tokenUri],
     chain: ctx.chain,
-    account: account.address,
   });
 
   const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
@@ -361,6 +354,6 @@ export async function updateTokenUri(
     tokenUri: opts.tokenUri,
     txHash: hash,
     blockNumber: receipt.blockNumber.toString(),
-    explorer: `${ctx.network.explorerUrl}tx/${hash}`,
+    explorer: `${ctx.network.explorerUrl}/tx/${hash}`,
   };
 }

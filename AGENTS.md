@@ -84,7 +84,46 @@ npx tsx packages/x402-server/src/index.ts &
 npx tsx scripts/casper-x402-demo.ts
 ```
 
-### 0G Compute fallback
+### Cross-Chain Credential Portability Demo
+
+Demonstrates `capabilityHash("kyc.basic")` producing the same hash on both
+Casper Testnet and Pharos Atlantic Testnet, with the same issuer key:
+
+```bash
+export LIGIS_NETWORK=atlantic-testnet
+npx tsx scripts/cross-chain-credential-demo.ts
+```
+
+The script auto-loads `.env.d/casper.env` (Casper deployer + contracts) and
+`.env.d/deployer.env` (Pharos deployer key + RPC). Output shows both chains
+with identical capability hash and issuer EVM address.
+
+### 0G Compute
+
+**Default provider:** Qwen 2.5 7B
+(`0xa48f01287233509FD694a22Bf840225062E67836` on Galileo testnet).
+
+Changed from Gemma 3 27B (`0x69Eb5a0BD7d0f4bF39eD5CE9Bd3376c61863aE08`) which
+was unreachable (compute-network-8.integratenetwork.work down since mid-2026).
+
+Qwen 2.5 7B requires ≥1.0 OG minimum reserve in provider ledger balance. Run
+the following once per wallet to set up:
+
+```bash
+export $(grep -v '^#' .env.d/zerog.env | grep -v '^$' | xargs)
+npx tsx -e "
+import { ethers } from 'ethers';
+import { createZGComputeNetworkBroker } from '@0gfoundation/0g-compute-ts-sdk';
+const QWEN = '0xa48f01287233509FD694a22Bf840225062E67836';
+const provider = new ethers.JsonRpcProvider(process.env.ZEROG_RPC_URL);
+const wallet = new ethers.Wallet(process.env.ZEROG_PRIVATE_KEY, provider);
+const broker = await createZGComputeNetworkBroker(wallet);
+broker.ledger.addLedger(5);
+broker.inference.acknowledgeProviderSigner(QWEN);
+broker.ledger.transferFund(QWEN, 'inference', ethers.parseEther('1.5'));
+console.log('0G Compute ready with Qwen 2.5 7B');
+"
+```
 
 If 0G Compute is unavailable (network issues, service down), the CLI and
 web steward automatically fall back to `LocalReasoner` (keyword-based
