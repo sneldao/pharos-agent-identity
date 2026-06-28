@@ -36,6 +36,7 @@ export async function issueId(
           functionName: "mintSelf",
           args: [tokenUri],
           chain: ctx.chain,
+          account,
         })
       : await walletClient.writeContract({
           address: ctx.deployment.pharosAgentId,
@@ -43,6 +44,7 @@ export async function issueId(
           functionName: "mint",
           args: [controller, tokenUri],
           chain: ctx.chain,
+          account,
         });
 
   const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
@@ -137,15 +139,17 @@ export async function revoke(
       functionName: "revoke",
       args: [subject, capHash, nonce],
       chain: ctx.chain,
+      account: issuerAccount,
     });
   } else {
-    const { walletClient } = requireWallet(ctx);
+    const { walletClient, account } = requireWallet(ctx);
     hash = await walletClient.writeContract({
       address: ctx.deployment.credentialRegistry,
       abi: CREDENTIAL_REGISTRY_ABI,
       functionName: "revoke",
       args: [subject, capHash, nonce],
       chain: ctx.chain,
+      account,
     });
   }
 
@@ -191,6 +195,7 @@ export async function rotate(
     functionName: "rotate",
     args: [tokenId, newController],
     chain: ctx.chain,
+    account,
   });
 
   const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
@@ -307,6 +312,7 @@ export async function submitCredential(
     functionName: "issue",
     args: [issuer, subject, signed.capabilityHash, issuedAt, expiresAt, nonce, signed.signature],
     chain: ctx.chain,
+    account,
   });
 
   const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
@@ -344,6 +350,7 @@ export async function updateTokenUri(
     functionName: "setTokenURI",
     args: [tokenId, opts.tokenUri],
     chain: ctx.chain,
+    account,
   });
 
   const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
