@@ -316,6 +316,9 @@ export async function* stewardLoop(
 
   let reasoning: string;
   let requiredCaps: CapabilityRef[];
+  let reasonModel: string | undefined;
+  let reasonVerified: boolean | undefined;
+  let reasonSource: "0g" | "local" = "local";
 
   const hasZeroG = !!process.env.ZEROG_PRIVATE_KEY;
 
@@ -327,22 +330,27 @@ export async function* stewardLoop(
       const parsed = parseReasoning(result.text, goal);
       reasoning = parsed.reasoning || result.text;
       requiredCaps = parsed.capabilities;
+      reasonModel = result.model;
+      reasonVerified = result.verified;
+      reasonSource = "0g";
     } catch (err) {
       // Fallback to local policy if 0G Compute fails
       reasoning = `(0G Compute unavailable: ${err instanceof Error ? err.message : String(err)}. Using local policy.) `;
       const fallback = localReason(goal);
       reasoning += fallback.reasoning;
       requiredCaps = fallback.capabilities;
+      reasonSource = "local";
     }
   } else {
     const fallback = localReason(goal);
     reasoning = fallback.reasoning;
     requiredCaps = fallback.capabilities;
+    reasonSource = "local";
   }
 
   for (const chunk of reasoning.split(/(\s+)/)) {
     await sleep(35 + Math.random() * 40);
-    yield { type: "delta", phase: "REASON", text: chunk };
+    yield { type: "delta", phase: "REASON", text: chunk, model: reasonModel, verified: reasonVerified, source: reasonSource };
   }
   await sleep(200);
   yield { type: "phase", phase: "REASON", status: "done" };
@@ -465,6 +473,7 @@ export async function* stewardLoop(
   let anchorTx: string;
   let tokenUri: string;
   let storageType: "0g" | "local" = "local";
+  let storageTxHash: string | undefined;
 
   if (canWrite) {
     // Build evidence manifest
@@ -493,6 +502,7 @@ export async function* stewardLoop(
         rootHash = stored.rootHash;
         tokenUri = `0g://${stored.rootHash}`;
         storageType = "0g";
+        storageTxHash = stored.txHash;
       } catch {
         rootHash = keccak256(toBytes(JSON.stringify(manifest))) as string;
         tokenUri = `0g://${rootHash.slice(2, 34)}`;
@@ -529,6 +539,7 @@ export async function* stewardLoop(
     anchorTx,
     storageType,
     tokenUri,
+    storageTxHash,
   };
   yield { type: "phase", phase: "RECORD", status: "done" };
 
@@ -541,6 +552,8 @@ export async function* stewardLoop(
     live: canWrite,
     rpcCalls,
     subject,
+    model: reasonModel,
+    source: reasonSource,
   };
 }
 

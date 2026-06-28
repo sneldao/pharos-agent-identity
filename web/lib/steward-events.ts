@@ -11,7 +11,7 @@ export const PHASES: ReadonlyArray<{ key: Phase; label: string; gloss: string }>
 export type StewardEvent =
   | { type: "phase"; phase: Phase; status: "start" | "done" | "skip" }
   | { type: "boot"; phase: "BOOT"; tokenId: string; minted: boolean; subject?: string }
-  | { type: "delta"; phase: "REASON"; text: string }
+  | { type: "delta"; phase: "REASON"; text: string; model?: string; verified?: boolean; source?: "0g" | "local" }
   | { type: "capability"; phase: "GATE"; name: string; hash: string; capable: boolean; selfIssued: boolean; issueTxHash?: string }
   | { type: "tx"; phase: "ACT"; name: string; txHash: string }
   | {
@@ -21,6 +21,7 @@ export type StewardEvent =
       anchorTx: string;
       storageType: "0g" | "local";
       tokenUri: string;
+      storageTxHash?: string;
     }
-  | { type: "summary"; ok: boolean; tokenId?: string; gated?: boolean; live: boolean; rpcCalls?: number; subject?: string }
+  | { type: "summary"; ok: boolean; tokenId?: string; gated?: boolean; live: boolean; rpcCalls?: number; subject?: string; minted?: boolean; model?: string; source?: "0g" | "local" }
   | { type: "error"; message: string };

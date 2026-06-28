@@ -86,21 +86,29 @@ export default async function StewardPage({
           style={{ borderLeft: "3px solid #B85D3E" }}
         >
           <span className="mt-0.5 shrink-0 font-mono text-[11px] uppercase tracking-[0.16em] text-terra">
-            live or simulated
+            three modes
           </span>
           <p className="font-serif text-sm leading-relaxed text-ink-soft">
-            The loop supports two modes: <strong>simulated</strong> (default —
-            no on-chain writes, no wallet needed) and <strong>live</strong>{" "}
-            (toggle on to run real{" "}
+            The loop runs in three states: <strong>simulated</strong> (default —
+            no on-chain writes, no wallet needed), <strong>live reads</strong>{" "}
+            (real{" "}
             <span className="font-mono text-ink">
               {isCasper ? "isCapable" : "isCapableMulti"}
             </span>{" "}
-            reads, self-issue credentials via signed EIP-712 transactions, and
+            calls against the registry — happens automatically when contracts
+            are live), and <strong>live writes</strong> (toggle on to run real{" "}
+            <span className="font-mono text-ink">
+              {isCasper ? "mint_self" : "mintSelf"}
+            </span>
+            , self-issue credentials via signed EIP-712 transactions, and
             anchor an evidence manifest on-chain via{" "}
             <span className="font-mono text-ink">
               {isCasper ? "set_token_uri" : "setTokenURI"}
             </span>
-            ). Live mode requires a funded wallet key on the server.
+            ). When <span className="font-mono text-ink">ZEROG_PRIVATE_KEY</span>{" "}
+            is set, the REASON phase uses 0G Compute (TEE-verified LLM) and the
+            RECORD phase uploads to 0G Storage. Live mode requires a funded
+            wallet key on the server.
           </p>
         </div>
       </section>

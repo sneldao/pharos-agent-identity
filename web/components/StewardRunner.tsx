@@ -14,10 +14,13 @@ type PhaseStatus = "idle" | "running" | "done" | "error";
 type State = {
   phaseStatus: Record<Phase, PhaseStatus>;
   reasonText: string;
+  reasonModel?: string;
+  reasonVerified?: boolean;
+  reasonSource?: "0g" | "local";
   capabilities: Array<{ name: string; capable: boolean; selfIssued: boolean; issueTxHash?: string }>;
   txs: Array<{ name: string; txHash: string }>;
-  manifest: { rootHash: string; anchorTx: string; storageType: string; tokenUri: string } | null;
-  summary: { ok: boolean; tokenId?: string; gated?: boolean; live: boolean; rpcCalls?: number; subject?: string; minted?: boolean } | null;
+  manifest: { rootHash: string; anchorTx: string; storageType: string; tokenUri: string; storageTxHash?: string } | null;
+  summary: { ok: boolean; tokenId?: string; gated?: boolean; live: boolean; rpcCalls?: number; subject?: string; minted?: boolean; model?: string; source?: "0g" | "local" } | null;
   error: string | null;
   events: StewardEvent[];
 };
@@ -47,6 +50,9 @@ function apply(state: State, ev: StewardEvent): State {
       break;
     case "delta":
       next.reasonText = state.reasonText + ev.text;
+      next.reasonModel = ev.model;
+      next.reasonVerified = ev.verified;
+      next.reasonSource = ev.source;
       break;
     case "capability": {
       const existing = state.capabilities.findIndex((c) => c.name === ev.name);
@@ -62,10 +68,10 @@ function apply(state: State, ev: StewardEvent): State {
       next.txs = [...state.txs, { name: ev.name, txHash: ev.txHash }];
       break;
     case "manifest":
-      next.manifest = { rootHash: ev.rootHash, anchorTx: ev.anchorTx, storageType: ev.storageType, tokenUri: ev.tokenUri };
+      next.manifest = { rootHash: ev.rootHash, anchorTx: ev.anchorTx, storageType: ev.storageType, tokenUri: ev.tokenUri, storageTxHash: ev.storageTxHash };
       break;
     case "summary":
-      next.summary = { ok: ev.ok, tokenId: ev.tokenId, gated: ev.gated, live: ev.live, rpcCalls: ev.rpcCalls, subject: ev.subject, minted: next.summary?.minted };
+      next.summary = { ok: ev.ok, tokenId: ev.tokenId, gated: ev.gated, live: ev.live, rpcCalls: ev.rpcCalls, subject: ev.subject, minted: next.summary?.minted, model: ev.model, source: ev.source };
       break;
     case "error":
       next.error = ev.message;
@@ -80,8 +86,35 @@ export function StewardRunner({ defaultGoal }: { defaultGoal: string }) {
   const [running, setRunning] = useState(false);
   const [showReal, setShowReal] = useState(false);
   const [live, setLive] = useState(false);
+  const [copied, setCopied] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const searchParams = useSearchParams();
+
+  const GOAL_PRESETS = [
+    "I need to open an escrow with a counterparty and swap tokens on an approved venue.",
+    "I need to bridge assets cross-chain and pay for premium data feeds via x402.",
+    "I need to manage recurring payment mandates for subscription services.",
+    "I need to verify my identity (KYC) and prove accredited investor status for RWA trading.",
+  ];
+
+  const readiness = useMemo(() => {
+    const ps = state.phaseStatus;
+    if (ps.BOOT === "idle") return 0;
+    if (ps.BOOT === "running") return 5;
+    if (ps.REASON === "running") return 15;
+    if (ps.REASON === "done") return 25;
+    if (ps.GATE === "running") return 35;
+    if (ps.GATE === "done") {
+      const held = state.capabilities.filter((c) => c.capable).length;
+      const total = state.capabilities.length || 1;
+      return 35 + Math.round((held / total) * 40);
+    }
+    if (ps.ACT === "running") return 70;
+    if (ps.ACT === "done") return 85;
+    if (ps.RECORD === "running") return 90;
+    if (ps.RECORD === "done") return 100;
+    return 0;
+  }, [state.phaseStatus, state.capabilities]);
 
   const run = useCallback(async () => {
     abortRef.current?.abort();
@@ -139,6 +172,34 @@ export function StewardRunner({ defaultGoal }: { defaultGoal: string }) {
     setRunning(false);
   }, []);
 
+  const copyAsProof = useCallback(() => {
+    if (!state.summary) return;
+    const lines: string[] = [];
+    lines.push("=== Ligis Trust Steward — Proof ===");
+    lines.push(`Agent: ${state.summary.subject ?? "unknown"}`);
+    lines.push(`Token: #${state.summary.tokenId ?? "?"}`);
+    lines.push(`Mode: ${state.summary.live ? "live on-chain" : "simulated"}`);
+    if (state.summary.model) lines.push(`Reasoning: ${state.summary.model} (${state.summary.source === "0g" ? "0G Compute · TEE-verified" : "local"})`);
+    lines.push(`Gated: ${state.summary.gated ? "yes" : "no"}`);
+    lines.push(`Capabilities:`);
+    for (const c of state.capabilities) {
+      lines.push(`  ${c.name}: ${c.capable ? "held" : "not held"}${c.selfIssued ? " (self-issued)" : ""}${c.issueTxHash ? ` tx:${c.issueTxHash}` : ""}`);
+    }
+    if (state.txs.length > 0) {
+      lines.push(`Transactions:`);
+      for (const t of state.txs) lines.push(`  ${t.name}: ${t.txHash}`);
+    }
+    if (state.manifest) {
+      lines.push(`Evidence: ${state.manifest.storageType === "0g" ? "0G Storage" : "local hash"}`);
+      lines.push(`  Root: ${state.manifest.rootHash}`);
+      lines.push(`  Anchor: ${state.manifest.anchorTx}`);
+      if (state.manifest.storageTxHash) lines.push(`  0G Upload: ${state.manifest.storageTxHash}`);
+    }
+    navigator.clipboard.writeText(lines.join("\n"));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [state.summary, state.capabilities, state.txs, state.manifest]);
+
   const eventCount = state.events.length;
   const jsonPanel = useMemo(() => JSON.stringify(state.events, null, 2), [state.events]);
 
@@ -184,6 +245,22 @@ export function StewardRunner({ defaultGoal }: { defaultGoal: string }) {
     <div className="space-y-16">
       <StewardDiagram phaseStatus={state.phaseStatus} running={running} />
 
+      {/* Readiness meter */}
+      {readiness > 0 ? (
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <span className="eyebrow">agent readiness</span>
+            <span className="font-mono text-[11px] tabular text-ink-soft">{readiness}%</span>
+          </div>
+          <div className="h-[3px] w-full bg-rule">
+            <div
+              className="h-full bg-terra transition-all duration-700 ease-out"
+              style={{ width: `${readiness}%` }}
+            />
+          </div>
+        </div>
+      ) : null}
+
       {thought ? (
         <section className="space-y-4" key={thought}>
           <p className="eyebrow">self · thought</p>
@@ -205,6 +282,19 @@ export function StewardRunner({ defaultGoal }: { defaultGoal: string }) {
             rows={3}
             className="block w-full resize-none border-0 border-b border-rule bg-transparent pb-3 font-serif text-lg leading-relaxed text-ink outline-none transition-colors focus:border-terra"
           />
+        </div>
+        {/* Goal presets */}
+        <div className="flex flex-wrap gap-2">
+          {GOAL_PRESETS.map((preset, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setGoal(preset)}
+              className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-quiet underline decoration-rule decoration-1 underline-offset-4 transition-colors hover:text-ink hover:decoration-terra"
+            >
+              {preset.split(" ").slice(0, 4).join(" ")}…
+            </button>
+          ))}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -261,19 +351,40 @@ export function StewardRunner({ defaultGoal }: { defaultGoal: string }) {
               ) : null}
 
               {p.key === "REASON" && state.reasonText ? (
-                <p className="max-w-prose font-serif text-base leading-relaxed text-ink">
-                  {state.reasonText}
-                  {status === "running" ? (
-                    <span className="ml-1 inline-block h-3 w-[2px] translate-y-[2px] animate-pulse bg-ink" />
+                <div className="space-y-3">
+                  {state.reasonSource === "0g" ? (
+                    <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                      <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-terra">
+                        0G Compute · {state.reasonModel ?? "unknown model"}
+                      </span>
+                      {state.reasonVerified ? (
+                        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-sage">
+                          TEE-verified ✓
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : state.reasonSource === "local" && status === "done" ? (
+                    <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-quiet">
+                      local keyword match
+                    </span>
                   ) : null}
-                </p>
+                  <p className="max-w-prose font-serif text-base leading-relaxed text-ink">
+                    {state.reasonText}
+                    {status === "running" ? (
+                      <span className="ml-1 inline-block h-3 w-[2px] translate-y-[2px] animate-pulse bg-ink" />
+                    ) : null}
+                  </p>
+                </div>
               ) : null}
 
               {p.key === "GATE" && state.capabilities.length > 0 ? (
                 <div className="space-y-0">
                   {state.capabilities.map((c) => (
                     <div key={c.name}>
-                      <div className="grid grid-cols-[1fr_auto_auto] items-baseline gap-x-8 py-3 text-sm">
+                      <div className="grid grid-cols-[auto_1fr_auto_auto] items-baseline gap-x-4 py-3 text-sm">
+                        <span className={`text-base ${c.capable ? "text-sage" : "text-ink-quiet"}`} aria-hidden>
+                          {c.capable ? "✓" : "✕"}
+                        </span>
                         <div className="space-y-0.5">
                           <span className="font-mono tabular text-ink">{c.name}</span>
                           {c.selfIssued ? (
@@ -340,6 +451,19 @@ export function StewardRunner({ defaultGoal }: { defaultGoal: string }) {
                       {truncateHash(state.manifest.rootHash, 10, 6)}
                     </span>
                   </div>
+                  {state.manifest.storageTxHash ? (
+                    <div className="grid grid-cols-[8rem_1fr] items-baseline gap-x-6">
+                      <span className="text-ink-quiet">0G upload</span>
+                      <a
+                        href={`${network.explorerUrl}/tx/${state.manifest.storageTxHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-mono tabular text-terra underline decoration-terra/40 decoration-1 underline-offset-4 transition-colors hover:decoration-terra"
+                      >
+                        {truncateHash(state.manifest.storageTxHash, 10, 6)}
+                      </a>
+                    </div>
+                  ) : null}
                   <div className="grid grid-cols-[8rem_1fr] items-baseline gap-x-6">
                     <span className="text-ink-quiet">anchor tx</span>
                     <a
@@ -371,7 +495,54 @@ export function StewardRunner({ defaultGoal }: { defaultGoal: string }) {
       </section>
 
       {state.summary?.ok ? (
-        <section className="space-y-3">
+        <section className="space-y-5 border-l-2 border-sage pl-6">
+          <p className="eyebrow text-sage">what just happened</p>
+          <p className="max-w-prose font-serif text-lg leading-relaxed text-ink">
+            Agent {state.summary.subject ? <Link href={`/agent/${state.summary.subject}`} className="text-terra underline decoration-terra/40 decoration-1 underline-offset-4 hover:decoration-terra">{truncateAddress(state.summary.subject, 6, 4)}</Link> : "unknown"}{" "}
+            {state.summary.minted ? "minted its identity" : "found its identity"} as token #{state.summary.tokenId ?? "?"}.{" "}
+            {state.summary.source === "0g" && state.summary.model ? (
+              <>{state.summary.model} (0G Compute, TEE-verified) identified </>
+            ) : (
+              <>Local policy identified </>
+            )}
+            {state.capabilities.length} required {state.capabilities.length === 1 ? "capability" : "capabilities"}.{" "}
+            {state.capabilities.filter((c) => c.capable && !c.selfIssued).length > 0 && (
+              <>{state.capabilities.filter((c) => c.capable && !c.selfIssued).length} {state.capabilities.filter((c) => c.capable && !c.selfIssued).length === 1 ? "was" : "were"} already held. </>
+            )}
+            {state.txs.length > 0 && (
+              <>{state.txs.length} {state.txs.length === 1 ? "was" : "were"} self-issued on-chain. </>
+            )}
+            Evidence {state.manifest?.storageType === "0g" ? "anchored to 0G Storage" : "hashed locally"} and anchored on-chain.
+            {" "}
+            {state.txs.length > 0 ? `${state.txs.length + (state.manifest?.storageTxHash ? 1 : 0) + 1} on-chain transactions.` : ""}
+          </p>
+          <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+            <button
+              type="button"
+              onClick={copyAsProof}
+              className="font-mono text-[11px] tabular text-ink-soft underline decoration-rule decoration-1 underline-offset-4 transition-colors hover:text-ink hover:decoration-terra"
+            >
+              {copied ? "✓ copied to clipboard" : "copy as proof"}
+            </button>
+            {state.summary.live && state.summary.subject ? (
+              <>
+                <Link
+                  href={`/agent/${state.summary.subject}`}
+                  className="font-mono text-[11px] tabular text-terra underline decoration-terra/40 decoration-1 underline-offset-4 transition-colors hover:decoration-terra"
+                >
+                  View agent profile →
+                </Link>
+                <a
+                  href={`${network.explorerUrl}/address/${state.summary.subject}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-mono text-[11px] tabular text-ink-soft underline decoration-rule decoration-1 underline-offset-4 transition-colors hover:text-ink hover:decoration-terra"
+                >
+                  On PharosScan ↗
+                </a>
+              </>
+            ) : null}
+          </div>
           <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-xs">
             <span className={`font-mono tabular ${state.summary.live ? "text-sage" : "text-ink-quiet"}`}>
               {state.summary.live ? "● live on-chain" : "○ simulated"}
@@ -392,24 +563,6 @@ export function StewardRunner({ defaultGoal }: { defaultGoal: string }) {
               </span>
             ) : null}
           </div>
-          {state.summary.live && state.summary.subject ? (
-            <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-xs">
-              <Link
-                href={`/agent/${state.summary.subject}`}
-                className="font-mono tabular text-terra underline decoration-terra/40 decoration-1 underline-offset-4 transition-colors hover:decoration-terra"
-              >
-                View agent profile →
-              </Link>
-              <a
-                href={`${network.explorerUrl}/address/${state.summary.subject}`}
-                target="_blank"
-                rel="noreferrer"
-                className="font-mono tabular text-ink-soft underline decoration-rule decoration-1 underline-offset-4 transition-colors hover:text-ink hover:decoration-terra"
-              >
-                On PharosScan ↗
-              </a>
-            </div>
-          ) : null}
         </section>
       ) : null}
 
