@@ -192,7 +192,7 @@
       id="root"
       data-composition-id="ligis-demo"
       data-start="0"
-      data-duration="100"
+      data-duration="108"
       data-width="1920"
       data-height="1080"
     >
@@ -234,7 +234,7 @@
         id="s2-problem"
         class="scene dark clip"
         data-start="3"
-        data-duration="9"
+        data-duration="9.6"
         data-track-index="0"
       >
         <div class="content">
@@ -260,7 +260,7 @@
         id="s3-intro"
         class="scene clip"
         data-start="13"
-        data-duration="9.5"
+        data-duration="9.2"
         data-track-index="0"
         style="background: var(--paper);"
       >
@@ -304,7 +304,7 @@
         id="s4-hash"
         class="scene dark clip"
         data-start="22.5"
-        data-duration="11.5"
+        data-duration="13.1"
         data-track-index="0"
       >
         <div class="content">
@@ -357,8 +357,8 @@
       <div
         id="s5-boot"
         class="scene clip"
-        data-start="34"
-        data-duration="9"
+        data-start="36"
+        data-duration="9.5"
         data-track-index="0"
         style="background: var(--paper);"
       >
@@ -404,8 +404,8 @@
       <div
         id="s6-credentials"
         class="scene clip"
-        data-start="43"
-        data-duration="12"
+        data-start="46"
+        data-duration="12.0"
         data-track-index="0"
         style="background: var(--paper);"
       >
@@ -455,8 +455,8 @@
       <div
         id="s7-x402"
         class="scene dark clip"
-        data-start="55"
-        data-duration="20"
+        data-start="58"
+        data-duration="19.6"
         data-track-index="0"
       >
         <div class="content">
@@ -524,8 +524,8 @@
       <div
         id="s8-crosschain"
         class="scene clip"
-        data-start="75"
-        data-duration="14"
+        data-start="78"
+        data-duration="14.5"
         data-track-index="0"
         style="background: var(--paper);"
       >
@@ -577,8 +577,8 @@ console.log(<span class="cyan">"same issuer:"</span>, issuer);
       <div
         id="s9-vision"
         class="scene dark clip"
-        data-start="89"
-        data-duration="5"
+        data-start="93"
+        data-duration="5.5"
         data-track-index="0"
       >
         <div class="content" style="justify-content: center; align-items: center; text-align: center;">
@@ -595,8 +595,8 @@ console.log(<span class="cyan">"same issuer:"</span>, issuer);
       <div
         id="s10-cta"
         class="scene clip"
-        data-start="94"
-        data-duration="6"
+        data-start="99"
+        data-duration="6.0"
         data-track-index="0"
         style="background: var(--paper);"
       >
@@ -629,15 +629,15 @@ console.log(<span class="cyan">"same issuer:"</span>, issuer);
       <!-- =========================================================
            AUDIO TRACKS — voiceovers placed on track 1
            ========================================================= -->
-      <audio id="vo-s1" data-start="3" data-duration="8.05" data-track-index="1" src="assets/audio/s1_problem.wav"></audio>
-      <audio id="vo-s2" data-start="13" data-duration="7.78" data-track-index="1" src="assets/audio/s2_intro.wav"></audio>
-      <audio id="vo-s3" data-start="22.5" data-duration="9.73" data-track-index="1" src="assets/audio/s3_hash.wav"></audio>
-      <audio id="vo-s4" data-start="34" data-duration="7.33" data-track-index="1" src="assets/audio/s4_boot.wav"></audio>
-      <audio id="vo-s5" data-start="43" data-duration="10.32" data-track-index="1" src="assets/audio/s5_credentials.wav"></audio>
-      <audio id="vo-s6" data-start="55" data-duration="17.75" data-track-index="1" src="assets/audio/s6_x402.wav"></audio>
-      <audio id="vo-s7" data-start="75" data-duration="11.90" data-track-index="1" src="assets/audio/s7_crosschain.wav"></audio>
-      <audio id="vo-s8" data-start="89" data-duration="4.20" data-track-index="1" src="assets/audio/s8_vision.wav"></audio>
-      <audio id="vo-s9" data-start="94" data-duration="4.59" data-track-index="1" src="assets/audio/s9_cta.wav"></audio>
+      <audio id="vo-s1" data-start="3" data-duration="9.57" data-track-index="1" src="assets/audio/s1_problem-eleven.mp3"></audio>
+      <audio id="vo-s2" data-start="13" data-duration="8.64" data-track-index="1" src="assets/audio/s2_intro-eleven.mp3"></audio>
+      <audio id="vo-s3" data-start="22.5" data-duration="12.59" data-track-index="1" src="assets/audio/s3_hash-eleven.mp3"></audio>
+      <audio id="vo-s4" data-start="36" data-duration="8.96" data-track-index="1" src="assets/audio/s4_boot-eleven.mp3"></audio>
+      <audio id="vo-s5" data-start="46" data-duration="11.42" data-track-index="1" src="assets/audio/s5_credentials-eleven.mp3"></audio>
+      <audio id="vo-s6" data-start="58" data-duration="19.09" data-track-index="1" src="assets/audio/s6_x402-eleven.mp3"></audio>
+      <audio id="vo-s7" data-start="78" data-duration="13.93" data-track-index="1" src="assets/audio/s7_crosschain-eleven.mp3"></audio>
+      <audio id="vo-s8" data-start="93" data-duration="4.97" data-track-index="1" src="assets/audio/s8_vision-eleven.mp3"></audio>
+      <audio id="vo-s9" data-start="99" data-duration="4.5" data-track-index="1" src="assets/audio/s9_cta-eleven.mp3"></audio>
 
       <script>
         window.__timelines = window.__timelines || {};
@@ -645,16 +645,17 @@ console.log(<span class="cyan">"same issuer:"</span>, issuer);
 
         // Subtle staggered reveals on each scene (within a 0.3s window)
         const scenes = [
-          { id: "s2-problem", start: 3, dur: 9 },
-          { id: "s3-intro", start: 13, dur: 9.5 },
-          { id: "s4-hash", start: 22.5, dur: 11.5 },
-          { id: "s5-boot", start: 34, dur: 9 },
-          { id: "s6-credentials", start: 43, dur: 12 },
-          { id: "s7-x402", start: 55, dur: 20 },
-          { id: "s8-crosschain", start: 75, dur: 14 },
-          { id: "s9-vision", start: 89, dur: 5 },
-          { id: "s10-cta", start: 94, dur: 6 },
-        ];
+  { id: "s1-title", start: 0, dur: 3 },
+  { id: "s2-problem", start: 3, dur: 9.6 },
+  { id: "s3-intro", start: 13, dur: 9.2 },
+  { id: "s4-hash", start: 22.5, dur: 13.1 },
+  { id: "s5-boot", start: 36, dur: 9.5 },
+  { id: "s6-credentials", start: 46, dur: 12 },
+  { id: "s7-x402", start: 58, dur: 19.6 },
+  { id: "s8-crosschain", start: 78, dur: 14.5 },
+  { id: "s9-vision", start: 93, dur: 5.5 },
+  { id: "s10-cta", start: 99, dur: 6 },
+];
 
         scenes.forEach((s) => {
           // Gentle fade-in at scene start (avoids harsh cut)
@@ -667,7 +668,7 @@ console.log(<span class="cyan">"same issuer:"</span>, issuer);
         });
 
         // Sentinel: keep the timeline alive to the root duration (100s)
-        tl.set({}, {}, 100);
+        tl.set({}, {}, 108);
 
         window.__timelines["ligis-demo"] = tl;
       </script>
