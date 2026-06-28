@@ -12,6 +12,8 @@
   --color-terra-soft: #e8c9bd;
   --color-sage: #6f8267;
   --color-revoke: #a13a2a;
+  --color-sky: #3b6e8f;
+  --color-sky-soft: #c5dae6;
 
   --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-fraunces), "Iowan Old Style", Georgia, serif;

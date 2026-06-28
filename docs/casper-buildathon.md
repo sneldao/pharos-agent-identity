@@ -161,9 +161,20 @@ scripts/
 ├── casper-x402-demo.ts  Full x402 payment flow (402→sign→pay→200 + RWA data)
 └── casper-smoke-test.ts Credential lifecycle test (mint→sign→submit→verify→revoke)
 web/
-├── lib/steward-casper.ts  Casper-specific steward loop (same event protocol)
-├── app/steward/page.tsx   Chain-aware (Casper + Pharos goals, CLI snippets)
-└── components/StewardRunner.tsx  Passes chain param to API
+├── lib/chain.ts            EVM read layer (viem + Pharos contracts)
+├── lib/chain-casper.ts     Casper read layer (CasperAdapter + block scanning)
+├── lib/chain-router.ts     Unified dispatch — branches on chain param
+├── lib/steward-casper.ts   Casper-specific steward loop (same event protocol)
+├── lib/steward.ts          Pharos steward loop
+├── app/page.tsx            Homepage — ChainSelector + chain-aware stats/contracts
+├── app/steward/page.tsx    Chain-aware steward page
+├── app/agent/[address]/    Agent profile — accepts EVM + Casper addresses
+├── app/issuers/page.tsx    Issuers — block scan on Casper, event logs on Pharos
+├── app/api/agent/[address]/  Chain-aware agent API route
+├── app/actions.ts          Server actions — chain-aware verify/batch-verify
+├── components/ChainSelector.tsx  URL-based chain switcher
+├── components/ChainBadge.tsx    Visual chain indicator (terra/sky accent)
+└── components/StewardRunner.tsx Passes chain param to API
 ```
 
 ## Roadmap (5 days, day-by-day)
@@ -185,6 +196,10 @@ web/
 - [x] `deploy.ts` — WASM install script (`pnpm deploy:casper`).
 - [x] Chain-awareness propagated to all web pages (agent, issuers, capabilities,
       steward, embed, embed/verify) — `?chain=casper-testnet` shows preview.
+- [x] Full Casper web integration: `chain-casper.ts` read layer, `chain-router.ts`
+      dispatch, all pages chain-aware (agent profiles, issuers, verify demo,
+      homepage stats, contract addresses). No more preview gating — Casper is
+      live across the entire frontend.
 
 ### Day 2 (Jun 26)
 - [x] Fund deployer wallet from faucet, transfer CSPR to agent + issuer.

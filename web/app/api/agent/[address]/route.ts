@@ -1,24 +1,36 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getAddress, type Address } from "viem";
-import { readAgentSnapshot, readCapabilityHistory, capabilities } from "@/lib/chain";
-import { isAddressLike } from "@/lib/format";
+import { getChain } from "@/lib/network";
+import {
+  readAgentSnapshot,
+  readCapabilityHistory,
+  capabilities,
+  isValidAddress,
+  isCasperChain,
+} from "@/lib/chain-router";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ address: string }> }
 ) {
   const { address: raw } = await params;
-  if (!isAddressLike(raw)) {
-    return NextResponse.json({ error: "invalid address" }, { status: 400 });
+  const chainParam = req.nextUrl.searchParams.get("chain") ?? "pharos-atlantic";
+  const chain = getChain({ chain: chainParam });
+
+  if (!isValidAddress(chain, raw)) {
+    return NextResponse.json(
+      { error: `Invalid address for ${chain.name}. Expected ${isCasperChain(chain) ? "account-hash-... or public key hex" : "0x-prefixed 20-byte address"}.` },
+      { status: 400 }
+    );
   }
   try {
-    const subject = getAddress(raw) as Address;
+    const subject = isCasperChain(chain) ? raw : (getAddress(raw) as Address);
     const [snap, history] = await Promise.all([
-      readAgentSnapshot(subject),
-      readCapabilityHistory(subject),
+      readAgentSnapshot(chain, subject),
+      readCapabilityHistory(chain, subject),
     ]);
 
     const capMap = new Map(capabilities.map((c) => [c.hash.toLowerCase(), c.id]));
@@ -26,6 +38,7 @@ export async function GET(
     return NextResponse.json(
       {
         address: subject,
+        chain: chain.id,
         exists: snap.exists,
         tokenId: snap.tokenId.toString(),
         controller: snap.controller,

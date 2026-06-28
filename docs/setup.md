@@ -84,6 +84,40 @@ The web frontend runs the Steward loop in two modes:
     (bypassing `eth_sendTransaction`, which the default Pharos RPC does not
     support). Set `PHAROS_RPC_URL` if using a custom RPC endpoint.
 
+### Chain switching (Pharos ↔ Casper)
+
+The web frontend supports switching between Pharos Atlantic and Casper Testnet
+via the `?chain=` query parameter (UI: `ChainSelector` in the page header).
+All pages are chain-aware:
+
+- **Homepage**: shows chain-specific live stats, contract addresses, and verify
+  demo. The `ChainSelector` is in the header.
+- **Agent profile** (`/agent/[address]`): accepts both EVM (`0x...`) and Casper
+  (`account-hash-...`) addresses. Reads agent snapshots and capability history
+  from the selected chain. Explorer links adapt (PharosScan vs cspr.live).
+- **Issuers** (`/issuers`): scans recent blocks for `issue` transactions on the
+  selected chain's CredentialRegistry. On Casper, this uses block scanning
+  (Casper has no EVM-style event logs).
+- **Steward** (`/steward`): the loop dispatches to `stewardLoopCasper` or
+  `stewardLoop` based on the chain param.
+- **Verify demo**: server actions accept `chainId` via hidden form field and
+  delegate to the correct chain's `isCapable` / `readCredential`.
+
+The chain dispatch layer is in `web/lib/chain-router.ts`, with Casper reads
+implemented in `web/lib/chain-casper.ts` (using `@ligis/adapter-casper`).
+
+**Casper env vars required on Vercel** for reads to work:
+
+- `LIGIS_CASPER_RPC_URL`
+- `LIGIS_CASPER_NETWORK`
+- `LIGIS_CASPER_AGENT_ID`
+- `LIGIS_CASPER_CREDENTIAL_REGISTRY`
+
+For live Casper writes from the steward loop, also set:
+
+- `LIGIS_CASPER_DEPLOYER_PUBKEY`
+- `LIGIS_CASPER_DEPLOYER_PRIVATE_KEY`
+
 **Security recommendation: use a dedicated steward wallet, not your deployer
 key.** Create a separate wallet for the web steward, fund it with a small
 amount of testnet PHRS (enough for gas), and mint it an Agent ID + issue
@@ -100,11 +134,19 @@ Live writes are rate-limited to 3 runs per minute per IP address.
 # In Vercel project settings → Environment Variables:
 LIGIS_STEWARD_KEY=0x...  # dedicated steward wallet (not your deployer key)
 ZEROG_PRIVATE_KEY=0x...  # SAME value as LIGIS_STEWARD_KEY — one key, two chains
+# Casper (required for Casper reads on the web frontend):
+LIGIS_CASPER_RPC_URL=https://node.testnet.casper.network/rpc
+LIGIS_CASPER_NETWORK=testnet
+LIGIS_CASPER_AGENT_ID=contract-package-...  # from .env.d/casper.env
+LIGIS_CASPER_CREDENTIAL_REGISTRY=contract-package-...  # from .env.d/casper.env
+# Casper live writes (optional — only for live steward loop on Casper):
+LIGIS_CASPER_DEPLOYER_PUBKEY=02...  # from .env.d/casper.env
+LIGIS_CASPER_DEPLOYER_PRIVATE_KEY=...  # from .env.d/casper.env
 # Optional:
 # PHAROS_RPC_URL=https://...  # custom RPC if default is rate-limited
 # ZEROG_RPC_URL=https://evmrpc-testnet.0g.ai  # 0G EVM RPC (default works)
 # ZEROG_INDEXER_RPC=https://indexer-storage-testnet-turbo.0g.ai  # 0G Storage indexer
-# ZEROG_PROVIDER=0x69Eb5a0BD7d0f4bF39eD5CE9Bd3376c61863aE08  # default Gemma 3 27B
+# ZEROG_PROVIDER=0xa48f01287233509FD694a22Bf840225062E67836  # Qwen 2.5 7B (default)
 ```
 
 ## 0G wallet setup

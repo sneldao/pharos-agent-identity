@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { AddressDisplay } from "@/components/AddressDisplay";
 import { ChainSelector } from "@/components/ChainSelector";
+import { ChainBadge } from "@/components/ChainBadge";
 import { Rule } from "@/components/Rule";
-import { network, readIssuerActivity } from "@/lib/chain";
+import { readIssuerActivity } from "@/lib/chain-router";
 import { getChain } from "@/lib/network";
 
 export const dynamic = "force-dynamic";
@@ -22,27 +23,7 @@ export default async function IssuersPage({
 }) {
   const chain = getChain(await searchParams);
 
-  // Non-live chains get a preview notice.
-  if (!chain.live) {
-    return (
-      <main className="mx-auto max-w-3xl px-8 pt-12 pb-32 sm:pt-20">
-        <header className="flex items-baseline justify-between text-xs">
-          <p className="eyebrow">Ligis · issuers 00</p>
-          <ChainSelector activeId={chain.id} />
-        </header>
-        <section className="mt-20">
-          <h1 className="display text-5xl text-ink sm:text-6xl">Issuers.</h1>
-          <p className="mt-10 max-w-prose font-serif text-lg leading-relaxed text-ink-soft">
-            {chain.name} is not yet live. Issuer activity will appear here once
-            the Casper contracts are deployed. Switch to Pharos Atlantic for
-            live issuer data.
-          </p>
-        </section>
-      </main>
-    );
-  }
-
-  const log = await readIssuerActivity();
+  const log = await readIssuerActivity(chain);
   const top = log.issuers.slice(0, 50);
 
   return (
@@ -51,6 +32,7 @@ export default async function IssuersPage({
         <p className="eyebrow">Ligis · issuers 00</p>
         <div className="flex items-baseline gap-6">
           <ChainSelector activeId={chain.id} />
+          <ChainBadge chain={chain} />
           <Link
             href="/"
             className="text-sm text-ink-soft underline decoration-rule decoration-1 underline-offset-4 hover:text-ink hover:decoration-terra"
@@ -67,7 +49,7 @@ export default async function IssuersPage({
         <p className="mt-10 max-w-prose font-serif text-lg leading-relaxed text-ink-soft">
           Issuance is permissionless. Anyone can sign a credential and submit
           it. The page below counts the addresses that have done so on{" "}
-          {network.name.toLowerCase()} and ranks them by the number of
+          {chain.name.toLowerCase()} and ranks them by the number of
           credentials they have signed.
         </p>
         <p className="mt-6 max-w-prose font-serif text-base italic leading-relaxed text-ink-quiet">
@@ -123,7 +105,7 @@ export default async function IssuersPage({
           ← Return to the index
         </Link>
         <span className="font-mono tabular">
-          {network.name.toLowerCase()} · chain {network.chainId}
+          {chain.name.toLowerCase()} · chain {chain.chainId ?? chain.chainName}
         </span>
       </footer>
     </main>

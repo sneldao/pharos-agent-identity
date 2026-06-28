@@ -1,15 +1,21 @@
-import type { Address } from "viem";
-import { getAddress } from "viem";
+import { getAddress, type Address } from "viem";
 import { notFound } from "next/navigation";
 import { AddressDisplay } from "@/components/AddressDisplay";
 import { AgentHero } from "@/components/catalog/AgentHero";
 import { ChainSelector } from "@/components/ChainSelector";
+import { ChainBadge } from "@/components/ChainBadge";
 import { Rule } from "@/components/Rule";
 import { ShareRow } from "@/components/ShareRow";
 import { Snippet } from "@/components/Snippet";
-import { capabilities, network, readAgentSnapshot, readCapabilityHistory } from "@/lib/chain";
+import { capabilities } from "@/lib/chain";
+import {
+  readAgentSnapshot,
+  readCapabilityHistory,
+  isCasperChain,
+} from "@/lib/chain-router";
 import { getChain, type ChainNetwork } from "@/lib/network";
-import { isAddressLike, monthYear, truncateAddress, truncateHash } from "@/lib/format";
+import { isCasperAddress } from "@/lib/chain-casper";
+import { monthYear, truncateAddress, truncateHash } from "@/lib/format";
 import { SITE_URL } from "@/lib/site";
 
 type Params = { address: string };
@@ -17,22 +23,26 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export const dynamic = "force-dynamic";
 
-function normalize(raw: string): Address | null {
-  if (!isAddressLike(raw)) return null;
+function normalizeForChain(raw: string, chain: ChainNetwork): string | null {
+  if (isCasperChain(chain)) {
+    return isCasperAddress(raw) ? raw : null;
+  }
+  if (!/^0x[0-9a-fA-F]{40}$/.test(raw)) return null;
   try {
-    return getAddress(raw);
+    return getAddress(raw) as Address;
   } catch {
     return null;
   }
 }
 
-export async function generateMetadata({ params }: { params: Promise<Params> }) {
+export async function generateMetadata({ params, searchParams }: { params: Promise<Params>; searchParams: SearchParams }) {
   const { address } = await params;
-  const normal = normalize(address);
+  const chain = getChain(await searchParams);
+  const normal = normalizeForChain(address, chain);
   if (!normal) return { title: "Unknown address — Ligis" };
   return {
     title: `Agent ${truncateAddress(normal)} — Ligis`,
-    description: `Identity, credentials, and evidence for agent ${normal} on ${network.name}.`,
+    description: `Identity, credentials, and evidence for agent ${normal} on ${chain.name}.`,
   };
 }
 
@@ -44,21 +54,17 @@ export default async function AgentPage({
   searchParams: SearchParams;
 }) {
   const { address: raw } = await params;
-  const address = normalize(raw);
+  const chain = getChain(await searchParams);
+  const address = normalizeForChain(raw, chain);
   if (!address) notFound();
 
-  const chain = getChain(await searchParams);
+  const isCasper = isCasperChain(chain);
 
-  // Non-live chains (e.g. Casper before contracts deploy) get a preview notice.
-  if (!chain.live) {
-    return <PreviewChain address={address} chain={chain} />;
-  }
-
-  const snap = await readAgentSnapshot(address);
+  const snap = await readAgentSnapshot(chain, address);
   const heldCount = snap.held.length;
 
   const capMap = new Map(capabilities.map((c) => [c.hash.toLowerCase(), c.id]));
-  const history = snap.exists ? await readCapabilityHistory(address) : [];
+  const history = snap.exists ? await readCapabilityHistory(chain, address) : [];
 
   return (
     <>
@@ -71,6 +77,7 @@ export default async function AgentPage({
           </p>
           <div className="flex items-baseline gap-6">
             <ChainSelector activeId={chain.id} />
+            <ChainBadge chain={chain} />
             <span className="font-mono tabular">
               {chain.name.toLowerCase()} · chain {chain.chainId}
             </span>
@@ -83,7 +90,7 @@ export default async function AgentPage({
           </h1>
           <p className="mt-8 max-w-prose font-serif text-lg leading-relaxed text-ink-soft">
             {snap.exists
-              ? `Held by a single controller on ${network.name}. Three reads from chain compose this page: ownership of the agent token, the controller, and the credential ledger.`
+              ? `Held by a single controller on ${chain.name}. Three reads from chain compose this page: ownership of the agent token, the controller, and the credential ledger.`
               : "This address has not minted an agent. It has no portable identity, no credentials, no evidence trail. To bootstrap one, use the Steward loop or the CLI."}
           </p>
           <div className="mt-10">
@@ -116,7 +123,7 @@ export default async function AgentPage({
         <header className="flex items-baseline justify-between">
           <p className="eyebrow">Credentials</p>
           <p className="font-mono text-[11px] tabular text-ink-quiet">
-            scanned against {network.name.toLowerCase()} reference set
+            scanned against {chain.name.toLowerCase()} reference set
           </p>
         </header>
         <div className="mt-6">
@@ -192,7 +199,7 @@ export default async function AgentPage({
                       </span>
                       <span className="w-32 text-right font-mono tabular text-ink-soft">
                         <a
-                          href={`${network.explorerUrl}/tx/${h.txHash}`}
+                          href={`${chain.explorerUrl}/tx/${h.txHash}`}
                           target="_blank"
                           rel="noreferrer"
                           className="underline decoration-rule decoration-1 underline-offset-4 transition-colors hover:text-ink hover:decoration-terra"
@@ -257,6 +264,7 @@ export default async function AgentPage({
         firstCapability={
           snap.held[0]?.capability.id ?? capabilities[0]?.id ?? "kyc.basic"
         }
+        chainId={chain.id}
       />
 
       <footer className="mt-24 flex items-baseline justify-between text-xs">
@@ -267,12 +275,12 @@ export default async function AgentPage({
           ← Return to the index
         </a>
         <a
-          href={`${network.explorerUrl}/address/${address}`}
+          href={`${chain.explorerUrl}/${isCasper ? "account" : "address"}/${address}`}
           target="_blank"
           rel="noreferrer"
           className="text-ink-soft underline decoration-rule decoration-1 underline-offset-4 transition-colors hover:text-ink hover:decoration-terra"
         >
-          On PharosScan ↗
+          On {isCasper ? "cspr.live" : "PharosScan"} ↗
         </a>
       </footer>
       </main>
@@ -284,12 +292,14 @@ function ShareSection({
   address,
   heldCount,
   firstCapability,
+  chainId,
 }: {
-  address: Address;
+  address: string;
   heldCount: number;
   firstCapability: string;
+  chainId: string;
 }) {
-  const url = `${SITE_URL}/agent/${address}`;
+  const url = `${SITE_URL}/agent/${address}?chain=${chainId}`;
   const heldLine =
     heldCount > 0
       ? `${heldCount} verified ${heldCount === 1 ? "capability" : "capabilities"}`
@@ -340,31 +350,6 @@ function ShareSection({
           <Snippet code={iframeCode} lang="html" />
         </div>
       </section>
-    </>
-  );
-}
-
-function PreviewChain({ address, chain }: { address: Address; chain: ChainNetwork }) {
-  return (
-    <>
-      <AgentHero address={address} heldCount={0} />
-      <main className="mx-auto max-w-5xl px-8 pt-16 pb-16 sm:pb-24">
-        <header className="flex items-baseline justify-between text-xs text-ink-quiet">
-          <p className="eyebrow">Agent · preview mode</p>
-          <ChainSelector activeId={chain.id} />
-        </header>
-        <section className="mt-12">
-          <h1 className="display text-5xl text-ink sm:text-[5rem]">
-            {truncateAddress(address, 6, 4)}
-          </h1>
-          <p className="mt-8 max-w-prose font-serif text-lg leading-relaxed text-ink-soft">
-            {chain.name} is not yet live in the web app. The Ligis contracts are
-            scaffolded and building (Odra/Rust), but the on-chain reads will
-            activate once they are deployed. Switch to Pharos Atlantic for live
-            agent data, or come back after the Casper contracts go live.
-          </p>
-        </section>
-      </main>
     </>
   );
 }

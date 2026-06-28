@@ -1,14 +1,15 @@
 "use server";
 
 import { getAddress, type Hex } from "viem";
+import { capabilities } from "@/lib/chain";
 import {
-  capabilities,
-  isCapable,
-  isCapableMulti,
-  network,
-  readCredential,
-} from "@/lib/chain";
-import { isAddressLike } from "@/lib/format";
+  isCapable as routerIsCapable,
+  isCapableMulti as routerIsCapableMulti,
+  readCredential as routerReadCredential,
+  isValidAddress,
+  isCasperChain,
+} from "@/lib/chain-router";
+import { getChain, type ChainNetwork } from "@/lib/network";
 
 export type CapabilityResult = {
   id: string;
@@ -23,7 +24,7 @@ export type VerifyResult =
   | {
       ok: true;
       capable: boolean;
-      subject: `0x${string}`;
+      subject: string;
       capabilityId: string;
       capabilityHash: Hex;
       issuer: `0x${string}` | null;
@@ -35,31 +36,40 @@ export type VerifyResult =
 export type BatchVerifyResult =
   | {
       ok: true;
-      subject: `0x${string}`;
+      subject: string;
       results: CapabilityResult[];
       rpcCalls: number;
     }
   | { ok: false; error: string };
 
+function resolveChain(form: FormData): ChainNetwork {
+  const chainId = String(form.get("chainId") ?? "").trim();
+  return getChain({ chain: chainId || undefined });
+}
+
 export async function verifyAction(
   _prev: VerifyResult | null,
   form: FormData
 ): Promise<VerifyResult> {
+  const chain = resolveChain(form);
   const subjectRaw = String(form.get("subject") ?? "").trim();
   const capabilityId = String(form.get("capability") ?? "").trim();
 
-  if (!isAddressLike(subjectRaw)) {
-    return { ok: false, error: "Subject must be a 0x-prefixed 20-byte address." };
+  if (!isValidAddress(chain, subjectRaw)) {
+    return {
+      ok: false,
+      error: `Subject must be a valid ${isCasperChain(chain) ? "Casper account hash (account-hash-...)" : "0x-prefixed 20-byte address"}.`,
+    };
   }
   const cap = capabilities.find((c) => c.id === capabilityId);
   if (!cap) {
     return { ok: false, error: "Unknown capability." };
   }
 
-  const subject = getAddress(subjectRaw);
+  const subject = isCasperChain(chain) ? subjectRaw : getAddress(subjectRaw);
 
   try {
-    const capable = await isCapable(subject, cap.hash);
+    const capable = await routerIsCapable(chain, subject, cap.hash);
     if (!capable) {
       return {
         ok: true,
@@ -72,7 +82,7 @@ export async function verifyAction(
         revoked: false,
       };
     }
-    const view = await readCredential(subject, cap.hash);
+    const view = await routerReadCredential(chain, subject, cap.hash);
     return {
       ok: true,
       capable: true,
@@ -86,7 +96,7 @@ export async function verifyAction(
   } catch (err) {
     return {
       ok: false,
-      error: `Read failed against ${network.name}. ${err instanceof Error ? err.message : String(err)}`,
+      error: `Read failed against ${chain.name}. ${err instanceof Error ? err.message : String(err)}`,
     };
   }
 }
@@ -95,17 +105,21 @@ export async function batchVerifyAction(
   _prev: BatchVerifyResult | null,
   form: FormData
 ): Promise<BatchVerifyResult> {
+  const chain = resolveChain(form);
   const subjectRaw = String(form.get("subject") ?? "").trim();
 
-  if (!isAddressLike(subjectRaw)) {
-    return { ok: false, error: "Subject must be a 0x-prefixed 20-byte address." };
+  if (!isValidAddress(chain, subjectRaw)) {
+    return {
+      ok: false,
+      error: `Subject must be a valid ${isCasperChain(chain) ? "Casper account hash (account-hash-...)" : "0x-prefixed 20-byte address"}.`,
+    };
   }
 
-  const subject = getAddress(subjectRaw);
+  const subject = isCasperChain(chain) ? subjectRaw : getAddress(subjectRaw);
   const hashes = capabilities.map((c) => c.hash);
 
   try {
-    const capableResults = await isCapableMulti(subject, hashes);
+    const capableResults = await routerIsCapableMulti(chain, subject, hashes);
     const results: CapabilityResult[] = await Promise.all(
       capabilities.map(async (cap, i) => {
         const capable = capableResults[i];
@@ -119,7 +133,7 @@ export async function batchVerifyAction(
             expiresAt: null,
           };
         }
-        const view = await readCredential(subject, cap.hash).catch(() => null);
+        const view = await routerReadCredential(chain, subject, cap.hash).catch(() => null);
         return {
           id: cap.id,
           label: cap.label,
@@ -135,12 +149,12 @@ export async function batchVerifyAction(
       ok: true,
       subject,
       results,
-      rpcCalls: 1,
+      rpcCalls: isCasperChain(chain) ? hashes.length : 1,
     };
   } catch (err) {
     return {
       ok: false,
-      error: `Read failed against ${network.name}. ${err instanceof Error ? err.message : String(err)}`,
+      error: `Read failed against ${chain.name}. ${err instanceof Error ? err.message : String(err)}`,
     };
   }
 }

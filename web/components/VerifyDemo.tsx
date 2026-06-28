@@ -16,10 +16,12 @@ export function VerifyDemo({
   capabilities,
   defaultSubject,
   explorerUrl,
+  chainId,
 }: {
   capabilities: CapOption[];
   defaultSubject: string;
   explorerUrl: string;
+  chainId?: string;
 }) {
   const [mode, setMode] = useState<"single" | "batch">("single");
   const [singleState, singleAction, singlePending] = useActionState<
@@ -66,6 +68,7 @@ export function VerifyDemo({
           action={singleAction}
           className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
         >
+          {chainId ? <input type="hidden" name="chainId" value={chainId} /> : null}
           <label htmlFor="subject" className="block space-y-2">
             <span className="eyebrow">subject · wallet</span>
             <input
@@ -106,6 +109,7 @@ export function VerifyDemo({
           action={batchAction}
           className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-[1fr_auto] sm:items-end"
         >
+          {chainId ? <input type="hidden" name="chainId" value={chainId} /> : null}
           <label htmlFor="subject-batch" className="block space-y-2">
             <span className="eyebrow">subject · wallet</span>
             <input

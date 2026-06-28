@@ -128,3 +128,24 @@ console.log('0G Compute ready with Qwen 2.5 7B');
 If 0G Compute is unavailable (network issues, service down), the CLI and
 web steward automatically fall back to `LocalReasoner` (keyword-based
 matching). The fallback is labeled in output as `model: "local-keyword-match"`.
+
+### Web Chain Switching (Pharos ↔ Casper)
+
+The web frontend supports switching between Pharos Atlantic and Casper Testnet
+via the `?chain=` query parameter. All pages are chain-aware:
+
+- `web/lib/chain.ts` — EVM read layer (viem + Pharos contracts)
+- `web/lib/chain-casper.ts` — Casper read layer (CasperAdapter + block scanning)
+- `web/lib/chain-router.ts` — unified dispatch, branches on `chain.kind`
+
+Key points:
+- Casper addresses use `account-hash-...` format (not `0x...`)
+- Casper has no EVM-style event logs; issuer activity and capability history
+  are reconstructed by scanning recent blocks for `issue`/`revoke` transactions
+- Server actions (`web/app/actions.ts`) accept `chainId` via hidden form field
+- The steward API route already branches: `stewardLoopCasper` vs `stewardLoop`
+
+Required Vercel env vars for Casper reads:
+`LIGIS_CASPER_RPC_URL`, `LIGIS_CASPER_NETWORK`, `LIGIS_CASPER_AGENT_ID`,
+`LIGIS_CASPER_CREDENTIAL_REGISTRY`. For live writes also set
+`LIGIS_CASPER_DEPLOYER_PUBKEY` and `LIGIS_CASPER_DEPLOYER_PRIVATE_KEY`.

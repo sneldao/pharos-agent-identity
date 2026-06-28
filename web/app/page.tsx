@@ -1,21 +1,17 @@
 import Link from "next/link";
 import { CatalogHero } from "@/components/catalog/CatalogHero";
+import { ChainSelector } from "@/components/ChainSelector";
+import { ChainBadge } from "@/components/ChainBadge";
 import { Diagram } from "@/components/Diagram";
 import { Rule } from "@/components/Rule";
 import { Snippet } from "@/components/Snippet";
 import { StewardTeaser } from "@/components/StewardTeaser";
 import { VerifyDemo } from "@/components/VerifyDemo";
-import {
-  addresses,
-  capabilities,
-  readBlockNumber,
-  readTotalSupply,
-} from "@/lib/chain";
+import { capabilities, addresses } from "@/lib/chain";
+import { readBlockNumber, readTotalSupply, isCasperChain } from "@/lib/chain-router";
 import { getChain, type ChainNetwork } from "@/lib/network";
 
 export const dynamic = "force-dynamic";
-
-const SAMPLE_SUBJECT = "0xd21a4c7ab1a52a2Ab48A6f0271984d5c3D4027Ec";
 
 const SNIPPET = `import { readContract } from "viem";
 
@@ -28,13 +24,14 @@ const ok = await readContract({
 });`;
 
 async function liveStats(chain: ChainNetwork) {
-  // Only attempt EVM reads when the active chain is the live Pharos chain.
-  // Non-live chains (e.g. Casper before contracts deploy) get a preview notice.
   if (!chain.live) {
     return { ok: false as const, preview: true as const };
   }
   try {
-    const [supply, block] = await Promise.all([readTotalSupply(), readBlockNumber()]);
+    const [supply, block] = await Promise.all([
+      readTotalSupply(chain),
+      readBlockNumber(chain),
+    ]);
     return { supply: Number(supply), block: block.toString(), ok: true as const };
   } catch (err) {
     return {
@@ -52,6 +49,10 @@ export default async function HomePage({
   const chain = getChain(searchParams);
   const stats = await liveStats(chain);
   const capOptions = capabilities.map((c) => ({ id: c.id, label: c.label }));
+  const isCasper = isCasperChain(chain);
+  const sampleSubject = isCasper
+    ? "account-hash-0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b"
+    : "0xd21a4c7ab1a52a2Ab48A6f0271984d5c3D4027Ec";
 
   return (
     <>
@@ -63,6 +64,8 @@ export default async function HomePage({
         <header className="flex items-baseline justify-between text-xs">
           <p className="eyebrow">Ligis · how it works 00</p>
           <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+            <ChainSelector activeId={chain.id} />
+            <ChainBadge chain={chain} />
             <nav className="flex flex-wrap items-baseline gap-x-6 gap-y-2 text-sm text-ink-soft">
             <Link
               href="/capabilities"
@@ -131,9 +134,9 @@ export default async function HomePage({
                 <span className="not-italic text-ink-soft">
                   {chain.name}
                 </span>{" "}
-                contracts are deployed on Casper Testnet. The steward loop and
-                x402 payment flow are live — see the{" "}
-                <Link href="/steward?chain=casper-testnet" className="text-ink-soft underline decoration-rule decoration-1 underline-offset-4 hover:text-ink hover:decoration-terra">
+                is live. The steward loop and x402 payment flow are operational
+                — see the{" "}
+                <Link href={`/steward?chain=${chain.id}`} className="text-ink-soft underline decoration-rule decoration-1 underline-offset-4 hover:text-ink hover:decoration-terra">
                   Steward page
                 </Link>{" "}
                 for the autonomous loop demo.
@@ -164,8 +167,9 @@ export default async function HomePage({
             </div>
             <VerifyDemo
               capabilities={capOptions}
-              defaultSubject={SAMPLE_SUBJECT}
+              defaultSubject={sampleSubject}
               explorerUrl={chain.explorerUrl}
+              chainId={chain.id}
             />
           </div>
         </section>
@@ -206,30 +210,61 @@ export default async function HomePage({
             <Diagram className="h-auto w-full" />
           </div>
           <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-2">
-            <a
-              href={`${chain.explorerUrl}/address/${addresses.pharosAgentId}`}
-              target="_blank"
-              rel="noreferrer"
-              className="group block space-y-2 py-2"
-            >
-              <p className="eyebrow">PharosAgentID</p>
-              <Rule tone="soft" />
-              <p className="pt-1 font-mono text-sm tabular text-ink group-hover:text-terra">
-                {addresses.pharosAgentId}
-              </p>
-            </a>
-            <a
-              href={`${chain.explorerUrl}/address/${addresses.credentialRegistry}`}
-              target="_blank"
-              rel="noreferrer"
-              className="group block space-y-2 py-2"
-            >
-              <p className="eyebrow">CredentialRegistry</p>
-              <Rule tone="soft" />
-              <p className="pt-1 font-mono text-sm tabular text-ink group-hover:text-terra">
-                {addresses.credentialRegistry}
-              </p>
-            </a>
+            {isCasper ? (
+              <>
+                <a
+                  href={`${chain.explorerUrl}/contract/${process.env.LIGIS_CASPER_AGENT_ID ?? ""}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group block space-y-2 py-2"
+                >
+                  <p className="eyebrow">AgentId (Casper)</p>
+                  <Rule tone="soft" />
+                  <p className="pt-1 font-mono text-sm tabular text-ink group-hover:text-terra">
+                    {process.env.LIGIS_CASPER_AGENT_ID ?? "not configured"}
+                  </p>
+                </a>
+                <a
+                  href={`${chain.explorerUrl}/contract/${process.env.LIGIS_CASPER_CREDENTIAL_REGISTRY ?? ""}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group block space-y-2 py-2"
+                >
+                  <p className="eyebrow">CredentialRegistry (Casper)</p>
+                  <Rule tone="soft" />
+                  <p className="pt-1 font-mono text-sm tabular text-ink group-hover:text-terra">
+                    {process.env.LIGIS_CASPER_CREDENTIAL_REGISTRY ?? "not configured"}
+                  </p>
+                </a>
+              </>
+            ) : (
+              <>
+                <a
+                  href={`${chain.explorerUrl}/address/${addresses.pharosAgentId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group block space-y-2 py-2"
+                >
+                  <p className="eyebrow">PharosAgentID</p>
+                  <Rule tone="soft" />
+                  <p className="pt-1 font-mono text-sm tabular text-ink group-hover:text-terra">
+                    {addresses.pharosAgentId}
+                  </p>
+                </a>
+                <a
+                  href={`${chain.explorerUrl}/address/${addresses.credentialRegistry}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group block space-y-2 py-2"
+                >
+                  <p className="eyebrow">CredentialRegistry</p>
+                  <Rule tone="soft" />
+                  <p className="pt-1 font-mono text-sm tabular text-ink group-hover:text-terra">
+                    {addresses.credentialRegistry}
+                  </p>
+                </a>
+              </>
+            )}
           </div>
         </section>
 
