@@ -5,15 +5,15 @@
 
 ## Demo video
 
-[Watch the 1:35 walkthrough on YouTube](https://www.youtube.com/watch?v=PLACEHOLDER)
-(also linked from the buildathon submission)
+[Watch the 1:35 walkthrough (MP4, 5.6 MB)](https://github.com/sneldao/ligis/releases/download/buildathon-2026/ligis-demo.mp4)
+— also viewable on the [release page](https://github.com/sneldao/ligis/releases/tag/buildathon-2026).
 
 The video is composed in [`video/ligis-demo/`](video/ligis-demo/) using
 [HyperFrames](https://github.com/heygen-com/hyperframes) with live terminal
 captures of `casper-e2e-demo.ts` and `casper-x402-demo.ts`, real cspr.live
 transaction screenshots, and a 9-segment TTS voiceover. The composition
-source (`index.html`) is committed; the rendered MP4 ships in the GitHub
-Release of the same name.
+source (`index.html`) is committed; the rendered MP4 ships in the
+`buildathon-2026` GitHub Release.
 
 A chain-agnostic agent identity runtime: one `ChainAdapter` interface, two
 implementations (EVM/Pharos live, Casper/Odra live), and a Trust
