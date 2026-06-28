@@ -56,3 +56,17 @@ debug.log
 .junie/
 .agents/
 .casper/
+
+# video project — source tracked, rendered output + captures ignored
+/video/*/ligis-demo.mp4
+/video/*/renders/
+/video/*/thumbs/
+/video/*/assets/images/
+/video/*/assets/audio/
+/video/*/assets/captures/
+/video/*/node_modules/
+/video/*/package-lock.json
+
+# accidental build output of an earlier tsc run — not the real package
+# (real one is packages/adapter-casper/); keep ignored unless user confirms
+/CredentialRegistry/

@@ -142,6 +142,15 @@ function paymentRequirements(resourceUrl: string): PaymentRequirements {
   const asset = CONFIG.asset ||
     (process.env.LIGIS_CASPER_CREDENTIAL_REGISTRY ?? "").replace("contract-package-", "") ||
     "0000000000000000000000000000000000000000000000000000000000000000";
+  // Convert the configured payTo (any of: bare 64-char hex, "0x" + 64 hex,
+  // "01" + 64 hex, or "account-hash-" + 64 hex) into the Casper EIP-712
+  // 33-byte form: "0x" + "01" + 32-byte account-hash.
+  const raw = CONFIG.payTo
+    .replace(/^account-hash-/, "")
+    .replace(/^0x/, "")
+    .replace(/^00/, "")
+    .replace(/^01/, "");
+  const payToEip712 = `0x01${raw}`;
   return {
     scheme: "exact",
     network: `casper:${adapter.chainId === "casper-mainnet" ? "casper" : "casper-test"}`,
@@ -149,7 +158,7 @@ function paymentRequirements(resourceUrl: string): PaymentRequirements {
     resource: resourceUrl,
     description: `Ligis Trust Gate — ${CONFIG.capability} (RWA market data)`,
     mimeType: "application/json",
-    payTo: CONFIG.payTo,
+    payTo: payToEip712,
     maxTimeoutSeconds: 300,
     asset,
     extra: { name: "CSPR", version: "1", decimals: "9", symbol: "CSPR" },
@@ -244,7 +253,7 @@ async function settleLocally(
       return { ok: true, txHash: simHash, mode: "local-simulated" };
     }
 
-    const payToRaw = CONFIG.payTo.replace(/^00/, "").replace(/^0x/, "");
+    const payToRaw = CONFIG.payTo.replace(/^account-hash-/, "").replace(/^0x/, "").replace(/^00/, "").replace(/^01/, "");
     const payTo = `account-hash-${payToRaw}`;
     const transferId = Math.floor(Math.random() * 0xffffffff);
     // Minimum transfer on Casper testnet is 2.5 CSPR = 2,500,000,000 motes

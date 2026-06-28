@@ -3,6 +3,18 @@
 > **Portable on-chain identity and verifiable credentials for AI agents.**
 > **Live on Pharos + Casper Testnet. Autonomous steward loop + x402 payments working end-to-end.**
 
+## Demo video
+
+[Watch the 1:35 walkthrough on YouTube](https://www.youtube.com/watch?v=PLACEHOLDER)
+(also linked from the buildathon submission)
+
+The video is composed in [`video/ligis-demo/`](video/ligis-demo/) using
+[HyperFrames](https://github.com/heygen-com/hyperframes) with live terminal
+captures of `casper-e2e-demo.ts` and `casper-x402-demo.ts`, real cspr.live
+transaction screenshots, and a 9-segment TTS voiceover. The composition
+source (`index.html`) is committed; the rendered MP4 ships in the GitHub
+Release of the same name.
+
 A chain-agnostic agent identity runtime: one `ChainAdapter` interface, two
 implementations (EVM/Pharos live, Casper/Odra live), and a Trust
 Steward that runs the same loop on either chain. Credentials are chain-neutral
